@@ -120,6 +120,7 @@ static char** get_devices(ssize_t* restrict count)
   
   if (pid == 0)
     {
+      setenv("LANG", "C", 1);
       if (pipe_rw[1] != STDOUT_FILENO)
 	{
 	  close(STDOUT_FILENO);
