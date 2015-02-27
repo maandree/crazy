@@ -1,0 +1,17 @@
+RUNTIME DEPENDENCIES:
+
+	glibc
+	argparser-c
+	sane
+	coreutils
+	sh
+
+
+BUILD DEPENDENCIES:
+
+	gcc
+	glibc
+	argparser-c
+	make
+	coreutils
+
