@@ -308,15 +308,15 @@ static int scan_image(char** image)
   pipe_rw[0] = -1;
   pipe_rw[1] = -1;
   
-  snprintf(NULL, 0, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i | %s%zn",
-	   device, mode_, dpi, white, pipeimg, &n);
+  snprintf(NULL, 0, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s%zn",
+	   device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "", &n);
   
   sh = malloc((size_t)n * sizeof(char*));
   if (sh == NULL)
     goto fail;
   
-  sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i | %s",
-	  device, mode_, dpi, white, pipeimg);
+  sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s",
+	  device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "");
   
   if (pipe(pipe_rw) < 0)
     goto fail;
