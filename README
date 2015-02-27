@@ -8,7 +8,19 @@ Features:
 	Framebuffer support (pending)
 	X support (pending)
 	No GTK3+ support
+	No colord support
 	No unneccessary features, scanned imaged can be piped through a program
+		No colour profile support
+		No gamma support
+		No brightness support
+		No contrast support
+		No OCR support
+		No image quality support
+		No colour manipulation support
+		No page reordering support
+		No fax support
+		No e-mail support
+		No printer support (document copying)
 	Hotkey support (pending)
 	Option to rotate every other page 180° (pending)
 	Easy to insert, remove and replace scanned images (pending)
