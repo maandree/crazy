@@ -34,6 +34,56 @@
  */
 static char* execname;
 
+/**
+ * The scanning device
+ */
+static char* device = NULL;
+
+/**
+ * The scanning mode: 0=monochrome, 1=grey, 2=colour
+ */
+static int mode = -1;
+
+/**
+ * The scanning resolution
+ */
+static int dpi = -1;
+
+/**
+ * The brightness threshold for a white point
+ */
+static int white = 128;
+
+/**
+ * Shell sequence to pipe the image through while scanning
+ */
+static char* pipeimg = NULL;
+
+/**
+ * The number of degrees to rotate the image
+ */
+static int rotation = 0;
+
+/**
+ * The index of the corner in the the top-left corner after transformation
+ */
+static int c1 = 1;
+
+/**
+ * The index of the corner in the the top-right corner after transformation
+ */
+static int c2 = 2;
+
+/**
+ * The index of the corner in the the bottom-left corner after transformation
+ */
+static int c3 = 3;
+
+/**
+ * The index of the corner in the the bottom-right corner after transformation
+ */
+static int c4 = 4;
+
 
 /**
  * Get a list of all available devices
@@ -44,7 +94,6 @@ static char* execname;
 static char** get_devices(ssize_t* restrict count)
 {
   int pipe_rw[2];
-  int r;
   pid_t pid, reaped;
   char buf[512];
   ssize_t got, i;
@@ -52,8 +101,7 @@ static char** get_devices(ssize_t* restrict count)
   size_t ptr, allocated;
   int state = 0, status;
   
-  r = pipe(pipe_rw);
-  if (r < 0)
+  if (pipe(pipe_rw) < 0)
     {
       perror(execname);
       *count = -1;
@@ -143,7 +191,7 @@ static char** get_devices(ssize_t* restrict count)
 	    }
 	}
     }
-
+  
   for (;;)
     {
       reaped = wait(&status);
@@ -239,6 +287,123 @@ static int select_item(char** restrict selected, char** restrict list, size_t n,
 
 
 /**
+ * Scan an image
+ * 
+ * @param   image  Output parameter for the image buffer
+ * @return         Zero on and only on success
+ */
+static int scan_image(char** image)
+{
+  char* sh = NULL;
+  ssize_t n;
+  const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color";
+  int pipe_rw[2];
+  pid_t pid, reaped;
+  size_t ptr = 0, size = 8 << 10;
+  ssize_t got;
+  int status;
+  
+  *image = NULL;
+  pipe_rw[0] = -1;
+  pipe_rw[1] = -1;
+  
+  snprintf(NULL, 0, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i | %s%zn",
+	   device, mode_, dpi, white, pipeimg, &n);
+  
+  sh = malloc((size_t)n * sizeof(char*));
+  if (sh == NULL)
+    goto fail;
+  
+  sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i | %s",
+	  device, mode_, dpi, white, pipeimg);
+  
+  if (pipe(pipe_rw) < 0)
+    goto fail;
+  
+  pid = fork();
+  if (pid < 0)
+    goto fail;
+  
+  if (pid == 0)
+    {
+      if (pipe_rw[1] != STDOUT_FILENO)
+	{
+	  close(STDOUT_FILENO);
+	  dup2(pipe_rw[1], STDOUT_FILENO);
+	  close(pipe_rw[1]);
+	}
+      close(pipe_rw[0]);
+      execlp("sh", "sh", "-c", sh, NULL);
+      perror(execname);
+      free(sh);
+      exit(1);
+    }
+  
+  free(sh);
+  sh = NULL;
+  close(pipe_rw[1]);
+  
+  /* TODO */
+  
+  for (;;)
+    {
+      reaped = wait(&status);
+      if (reaped < 0)
+	goto fail;
+      else if (reaped == pid)
+	{
+	  if (status)
+	    {
+	      errno = 0;
+	      goto fail;
+	    }
+	  break;
+	}
+    }
+  
+  return 0;
+ fail:
+  if (errno)
+    perror(execname);
+  free(*image);
+  *image = NULL;
+  free(sh);
+  if (pipe_rw[0] >= 0)  close(pipe_rw[0]);
+  if (pipe_rw[1] >= 0)  close(pipe_rw[1]);
+  return -1;
+}
+
+
+/**
+ * Apply a transformation, rotation is applied first
+ * 
+ * @param  r  The number of degrees {0, 90, 180, 270} to rotate the page
+ * @param  x  Whether to mirror the page horizontally
+ * @param  y  Whether to mirror the page vertically
+ */
+static void apply_transformation(int r, int x, int y)
+{
+  for (; r; r -= 90)
+    {
+      /* Transpose */
+      c2 ^= c3, c3 ^= c2, c2 ^= c3;
+      
+      /* Mirror x-axis */
+      c1 ^= c2, c2 ^= c1, c1 ^= c2;
+      c3 ^= c4, c4 ^= c3, c3 ^= c4;
+    }
+  
+  /* Mirror x-axis */
+  if (x)  c1 ^= c2, c2 ^= c1, c1 ^= c2;
+  if (x)  c3 ^= c4, c4 ^= c3, c3 ^= c4;
+  
+  /* Mirror y-axis */
+  if (y)  c1 ^= c3, c3 ^= c1, c1 ^= c3;
+  if (y)  c2 ^= c4, c4 ^= c2, c2 ^= c4;
+}
+
+
+/**
  * Everything begins "here"
  * 
  * @param   argc  The number of command line arguments
@@ -252,13 +417,11 @@ int main(int argc, char* argv[])
 # pragma GCC diagnostic ignored "-Wcast-qual"
   
   int rc = 0;
-  char* device = NULL;
   char** args;
   ssize_t device_count;
   char** devices = NULL;
-  int mode = -1;
-  int dpi = -1;
-  int white = 128;
+  int mirrorx = 0, mirrory = 0;
+  
   
   execname = argv[0];
   
@@ -279,11 +442,23 @@ int main(int argc, char* argv[])
   args_add_option(args_new_argumented(NULL, (char*)"MODE", 0, (char*)"-m", (char*)"--mode", NULL),
 		  (char*)"Select scan mode: monochrome|grey|colour");
   
-  args_add_option(args_new_argumented(NULL, (char*)"DPI", 0, (char*)"-r", (char*)"--resolution", NULL),
+  args_add_option(args_new_argumented(NULL, (char*)"DPI", 0, (char*)"-q", (char*)"--resolution", NULL),
 		  (char*)"Select resolution: 75|150|300|600|1200|2400");
   
   args_add_option(args_new_argumented(NULL, (char*)"LEVEL", 0, (char*)"-t", (char*)"--threshold", NULL),
 		  (char*)"Select minimum brightness to get a white point");
+  
+  args_add_option(args_new_argumented(NULL, (char*)"COMMAND", 0, (char*)"-p", (char*)"--pipe", NULL),
+		  (char*)"Select shell sequence to pipe the scanned images through while scanning");
+  
+  args_add_option(args_new_argumentless(NULL, 0, (char*)"-x", (char*)"--mirror-x", NULL),
+		  (char*)"Mirror scanned images horizontally");
+  
+  args_add_option(args_new_argumentless(NULL, 0, (char*)"-y", (char*)"--mirror-y", NULL),
+		  (char*)"Mirror scanned images vertically");
+  
+  args_add_option(args_new_argumented(NULL, (char*)"ROTATION", 0, (char*)"-r", (char*)"--rotate", NULL),
+		  (char*)"Select rotation: 0|90|180|270");
   
   
   args_parse(argc, argv);
@@ -333,7 +508,7 @@ int main(int argc, char* argv[])
       if ((args_opts_get_count((char*)"--resolution") != 1) || (*args == NULL))
 	goto invalid_opts;
       dpi = atoi(*args);
-      if ((dpi != 75) && (dpi != 150) && (dpi != 300) && (dpi != 600))
+      if ((dpi % 75) || (dpi < 75) || (dpi > 2400))
 	goto invalid_opts;
     }
   if (args_opts_used((char*)"--threshold"))
@@ -345,7 +520,27 @@ int main(int argc, char* argv[])
       if (!((0 <= white) && (white <= 255)))
 	goto invalid_opts;
     }
-
+  if (args_opts_used((char*)"--pipe"))
+    {
+      args = args_opts_get((char*)"--pipe");
+      if ((args_opts_get_count((char*)"--pipe") != 1) || (*args == NULL))
+	goto invalid_opts;
+      pipeimg = *args;
+    }
+  mirrorx = !!args_opts_used((char*)"--mirror-x");
+  mirrory = !!args_opts_used((char*)"--mirror-y");
+  if (args_opts_used((char*)"--rotation"))
+    {
+      args = args_opts_get((char*)"--rotation");
+      if ((args_opts_get_count((char*)"--rotation") != 1) || (*args == NULL))
+	goto invalid_opts;
+      rotation = atoi(*args) % 360;
+      if (rotation < 0)
+	rotation += 360;
+      if (rotation % 90)
+	goto invalid_opts;
+    }
+  
   
   if (device == NULL)
     {
@@ -389,6 +584,12 @@ int main(int argc, char* argv[])
       else
 	dpi = atoi(dpi_);
     }
+
+  
+  apply_transformation(rotation, mirrorx, mirrory);
+  
+  /* TODO */
+  
   
  exit:
   if (devices != NULL)
