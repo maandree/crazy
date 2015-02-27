@@ -21,6 +21,8 @@
 #include <unistd.h>
 #include <termios.h>
 #include <errno.h>
+#include <string.h>
+#include <strings.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 
@@ -224,8 +226,14 @@ static int select_item(char** restrict selected, char** restrict list, size_t n,
 	}
     }
   
+  printf("\033[%zuA\033[00;01;34m%s\033[00m\n", n - sel, list[sel]);
+  if (n - sel > 0)
+    printf("\033[%zuB", n - sel);
+  fflush(stdout);
+  
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &saved_stty);
   *selected = list[sel];
+  printf("\n\n\n");
   return 0;
 }
 
@@ -248,6 +256,9 @@ int main(int argc, char* argv[])
   char** args;
   ssize_t device_count;
   char** devices = NULL;
+  int mode = -1;
+  int dpi = -1;
+  int white = 128;
   
   execname = argv[0];
   
@@ -259,11 +270,20 @@ int main(int argc, char* argv[])
   args_add_option(args_new_argumentless(NULL, 1, (char*)"-h", (char*)"-?", (char*)"--help", NULL),
 		  (char*)"Prints this help message");
   
+  args_add_option(args_new_argumentless(NULL, 0, (char*)"-L", (char*)"--list-devices", NULL),
+		  (char*)"List available scanning device");
+  
   args_add_option(args_new_argumented(NULL, (char*)"DEVICE", 0, (char*)"-d", (char*)"--device", NULL),
 		  (char*)"Select scanning device");
   
-  args_add_option(args_new_argumentless(NULL, 0, (char*)"-L", (char*)"--list-devices", NULL),
-		  (char*)"List available scanning device");
+  args_add_option(args_new_argumented(NULL, (char*)"MODE", 0, (char*)"-m", (char*)"--mode", NULL),
+		  (char*)"Select scan mode: monochrome|grey|colour");
+  
+  args_add_option(args_new_argumented(NULL, (char*)"DPI", 0, (char*)"-r", (char*)"--resolution", NULL),
+		  (char*)"Select resolution: 75|150|300|600|1200|2400");
+  
+  args_add_option(args_new_argumented(NULL, (char*)"LEVEL", 0, (char*)"-t", (char*)"--threshold", NULL),
+		  (char*)"Select minimum brightness to get a white point");
   
   
   args_parse(argc, argv);
@@ -293,6 +313,39 @@ int main(int argc, char* argv[])
 	goto invalid_opts;
       device = *args;
     }
+  if (args_opts_used((char*)"--mode"))
+    {
+      args = args_opts_get((char*)"--mode");
+      if ((args_opts_get_count((char*)"--mode") != 1) || (*args == NULL))
+	goto invalid_opts;
+      if (!strcasecmp(*args, "monochrome") || !strcasecmp(*args, "lineart"))
+	mode = 0;
+      else if (!strcasecmp(*args, "grey") || !strcasecmp(*args, "gray"))
+	mode = 1;
+      else if (!strcasecmp(*args, "colour") || !strcasecmp(*args, "color"))
+	mode = 2;
+      else
+	goto invalid_opts;
+    }
+  if (args_opts_used((char*)"--resolution"))
+    {
+      args = args_opts_get((char*)"--resolution");
+      if ((args_opts_get_count((char*)"--resolution") != 1) || (*args == NULL))
+	goto invalid_opts;
+      dpi = atoi(*args);
+      if ((dpi != 75) && (dpi != 150) && (dpi != 300) && (dpi != 600))
+	goto invalid_opts;
+    }
+  if (args_opts_used((char*)"--threshold"))
+    {
+      args = args_opts_get((char*)"--threshold");
+      if ((args_opts_get_count((char*)"--threshold") != 1) || (*args == NULL))
+	goto invalid_opts;
+      white = atoi(*args);
+      if (!((0 <= white) && (white <= 255)))
+	goto invalid_opts;
+    }
+
   
   if (device == NULL)
     {
@@ -306,11 +359,35 @@ int main(int argc, char* argv[])
 	}
       printf("\033[A\033[2K");
       if (device_count > 1)
-	rc = select_item(&device, devices, (size_t)device_count, "Select scanning device");
+	rc = select_item(&device, devices, (size_t)device_count,
+			 "Select scanning device");
       else
 	device = *devices;
       if (rc)
 	goto exit;
+    }
+  if (mode < 0)
+    {
+      char* mode_;
+      rc = select_item(&mode_, (char*[]){(char*)"monochrome", (char*)"grey", (char*)"colour"}, 3,
+		       "Select scanning mode");
+      if (rc)
+	goto exit;
+      else if (!strcmp(mode_, "monochrome"))  mode = 0;
+      else if (!strcmp(mode_, "grey"))        mode = 1;
+      else if (!strcmp(mode_, "colour"))      mode = 2;
+    }
+  if (dpi < 0)
+    {
+      char* dpi_;
+      rc = select_item(&dpi_, (char*[]){(char*)"75 dpi", (char*)"150 dpi",
+ 	                                (char*)"300 dpi", (char*)"600 dpi",
+ 	                                (char*)"1200 dpi", (char*)"2400 dpi"}, 6,
+		       "Select scanning resolution");
+      if (rc)
+	goto exit;
+      else
+	dpi = atoi(dpi_);
     }
   
  exit:
