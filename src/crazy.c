@@ -452,6 +452,8 @@ int main(int argc, char* argv[])
   args_add_option(args_new_argumented(NULL, (char*)"COMMAND", 0, (char*)"-p", (char*)"--pipe", NULL),
 		  (char*)"Select shell sequence to pipe the scanned images through while scanning");
   
+  /* TODO -P --postprocess */
+  
   args_add_option(args_new_argumentless(NULL, 0, (char*)"-x", (char*)"--mirror-x", NULL),
 		  (char*)"Mirror scanned images horizontally");
   
