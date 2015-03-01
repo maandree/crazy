@@ -28,6 +28,10 @@
 
 #include <argparser.h>
 
+#include "display.h"
+#include "display_fb.h"
+
+
 
 /**
  * `argv[0]` from `main`
@@ -60,29 +64,36 @@ static int white = 128;
 static char* pipeimg = NULL;
 
 /**
- * The number of degrees to rotate the image
+ * Shell sequence to pipe the image through after scanning
  */
-static int rotation = 0;
+static char* postimg = NULL;
+
+/**
+ * Image display system
+ */
+static display_t display;
+
 
 /**
  * The index of the corner in the the top-left corner after transformation
  */
-static int c1 = 1;
+int c1 = 1;
 
 /**
  * The index of the corner in the the top-right corner after transformation
  */
-static int c2 = 2;
+int c2 = 2;
 
 /**
  * The index of the corner in the the bottom-left corner after transformation
  */
-static int c3 = 3;
+int c3 = 3;
 
 /**
  * The index of the corner in the the bottom-right corner after transformation
  */
-static int c4 = 4;
+int c4 = 4;
+
 
 
 /**
@@ -299,9 +310,7 @@ static int scan_image(char** image)
   ssize_t n;
   const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color";
   int pipe_rw[2];
-  pid_t pid, reaped;
-  size_t ptr = 0, size = 8 << 10;
-  ssize_t got;
+  pid_t pid;
   int status;
   
   *image = NULL;
@@ -345,22 +354,6 @@ static int scan_image(char** image)
   close(pipe_rw[1]);
   
   /* TODO */
-  
-  for (;;)
-    {
-      reaped = wait(&status);
-      if (reaped < 0)
-	goto fail;
-      else if (reaped == pid)
-	{
-	  if (status)
-	    {
-	      errno = 0;
-	      goto fail;
-	    }
-	  break;
-	}
-    }
   
   return 0;
  fail:
@@ -421,7 +414,8 @@ int main(int argc, char* argv[])
   char** args;
   ssize_t device_count;
   char** devices = NULL;
-  int mirrorx = 0, mirrory = 0;
+  int mirrorx = 0, mirrory = 0, rotation = 0;
+  int display_initialised = 0;
   
   
   execname = argv[0];
@@ -452,7 +446,8 @@ int main(int argc, char* argv[])
   args_add_option(args_new_argumented(NULL, (char*)"COMMAND", 0, (char*)"-p", (char*)"--pipe", NULL),
 		  (char*)"Select shell sequence to pipe the scanned images through while scanning");
   
-  /* TODO -P --postprocess */
+  args_add_option(args_new_argumented(NULL, (char*)"COMMAND", 0, (char*)"-P", (char*)"--postprocess", NULL),
+		  (char*)"Select shell sequence to pipe the scanned images through after scanning");
   
   args_add_option(args_new_argumentless(NULL, 0, (char*)"-x", (char*)"--mirror-x", NULL),
 		  (char*)"Mirror scanned images horizontally");
@@ -530,6 +525,13 @@ int main(int argc, char* argv[])
 	goto invalid_opts;
       pipeimg = *args;
     }
+  if (args_opts_used((char*)"--postprocess"))
+    {
+      args = args_opts_get((char*)"--postprocess");
+      if ((args_opts_get_count((char*)"--postprocess") != 1) || (*args == NULL))
+	goto invalid_opts;
+      postimg = *args;
+    }
   mirrorx = !!args_opts_used((char*)"--mirror-x");
   mirrory = !!args_opts_used((char*)"--mirror-y");
   if (args_opts_used((char*)"--rotation"))
@@ -591,10 +593,26 @@ int main(int argc, char* argv[])
   
   apply_transformation(rotation, mirrorx, mirrory);
   
+  
+  /* TODO support should be optional */
+  display_fb_get(&display);
+  /*
+  if (strchr(getenv("DISPLAY") ?: "", ':'))
+    display_x_get(&display);
+  */
+  
+  
+  if (display.initialise())
+    goto fail;
+  display_initialised = 1;
+  
+  
   /* TODO */
   
   
  exit:
+  if (display_initialised)
+    display.terminate();
   if (devices != NULL)
     {
       while (device_count)
@@ -604,8 +622,9 @@ int main(int argc, char* argv[])
   args_dispose();
   return rc;
  invalid_opts:
-  rc = 1;
   args_help();
+ fail:
+  rc = 1;
   goto exit;
   
 # pragma GCC diagnostic pop
