@@ -71,7 +71,7 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 			      size_t* restrict crop_height, size_t* restrict split_x)
 {
   pid_t reaped;
-  int status;
+  int status, saved_errno;
   ssize_t got;
   size_t ptr = 0, size = 8 << 10, offset;
   char* old;
@@ -201,12 +201,14 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   
   free(scaled_image);
   return 0;
- fail:
-  free(scaled_image);
-  return -1;
  incomplete_scan:
-  fprintf(stderr, "%s: scan failure, image incomplete", execname);
-  goto fail;
+  fprintf(stderr, "%s: scan failed, image incomplete", execname);
+  errno = 0;
+ fail:
+  saved_errno = errno;
+  free(scaled_image);
+  errno = saved_errno;
+  return -1;
 }
 
 
