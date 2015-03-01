@@ -117,8 +117,16 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 	else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
 	  state = 8, maxval = maxval * 10 + (c & 15);
 	else if ((state % 2) == 0)
-	  if ((++state == 9) && (c == '\n'))
-	    break;
+	  {
+	    state++;
+	    if ((state == 7) && (type == 4))
+	      state = 9, maxval = 1;
+	    if ((state == 9) && (c == '\n'))
+	      {
+		state = 10;
+		break;
+	      }
+	  }
       
       ptr += (size_t)i;
       got -= i;
@@ -172,11 +180,16 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
     else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
       state = 8, maxval = maxval * 10 + (c & 15);
     else if ((state % 2) == 0)
-      if ((++state == 9) && (c == '\n'))
-	{
-	  state = 10;
-	  break;
-	}
+      {
+	state++;
+	if ((state == 7) && (type == 4))
+	  state = 9, maxval = 1;
+	if ((state == 9) && (c == '\n'))
+	  {
+	    state = 10;
+	    break;
+	  }
+      }
   offset = (size_t)i;
   
   size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
