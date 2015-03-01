@@ -52,7 +52,7 @@ LINK = -largparser
 all: bin/crazy
 
 
-bin/crazy: obj/crazy.o obj/display_fb.o
+bin/crazy: obj/crazy.o obj/display_fb.o obj/images.o
 	@mkdir -p bin
 	$(CC) $(WARN) $(OPTIMISE) $(LINK) $(LDFLAGS) -o $@ $^
 

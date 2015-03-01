@@ -223,6 +223,7 @@ static char** get_devices(ssize_t* restrict count)
     }
   
   free(rc[*count]);
+  close(pipe_rw[0]);
   return rc;
  fail:
   if (rc != NULL)
@@ -356,6 +357,7 @@ static int scan_image(char** image)
   
   /* TODO */
   
+  close(pipe_rw[0]);
   return 0;
  fail:
   if (errno)

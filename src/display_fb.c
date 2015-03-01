@@ -24,6 +24,20 @@
 #include <sys/wait.h>
 
 #include "crazy.h"
+#include "images.h"
+
+
+
+/**
+ * The width of the frame buffer
+ */
+static size_t fb_width;
+
+/**
+ * The height of the frame buffer
+ */
+static size_t fb_height;
+
 
 
 /**
@@ -33,6 +47,8 @@
  */
 static int display_fb_initialise(void)
 {
+  /* TODO display_fb_initialise */
+  
   return 0;
 }
 
@@ -56,13 +72,15 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 {
   pid_t reaped;
   int status;
-  ssize_t got, i;
+  ssize_t got;
   size_t ptr = 0, size = 8 << 10, offset;
   char* old;
-  int state = 0, comment = 0, type = 0;
+  int state, comment, type;
   unsigned int maxval = 0;
-  size_t width = 0, height = 0;
-  char c;
+  size_t width, height;
+  int resize_vertically;
+  size_t display_width, display_height;
+  char* scaled_image = NULL;
   
   (void) crop_x;
   (void) crop_y;
@@ -73,9 +91,10 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   if (fd < 0)
     goto reading_done;
   
+  pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
   *image = malloc(size * sizeof(char));
   if (*image == NULL)
-    return -1;
+    goto fail;
   for (;;)
     {
       if (size - ptr < 1024)
@@ -96,40 +115,17 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       else if (got < 0)
 	goto fail;
       
-      for (i = 0; i < got; i++)
-	if (state == 9)
-	  {
-	    if (c == '\n')
-	      break;
-	  }
-	else if (c = (*image)[i], comment)
-	  comment = c != '\n';
-	else if (c == '#')
-	  comment = 1;
-	else if ((state == 0) && (c == 'P'))
+      offset = 0;
+      if (state < 10)
+	offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, (size_t)got, *image + ptr);
+      if (state == 10)
+	{
 	  state++;
-	else if (((state == 1) || (state == 2)) && ('0' <= c) && (c <= '9'))
-	  state = 2, type = type * 10 + (c & 15);
-	else if (((state == 3) || (state == 4)) && ('0' <= c) && (c <= '9'))
-	  state = 4, width = width * 10 + (c & 15);
-	else if (((state == 5) || (state == 6)) && ('0' <= c) && (c <= '9'))
-	  state = 6, height = height * 10 + (c & 15);
-	else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
-	  state = 8, maxval = maxval * 10 + (c & 15);
-	else if ((state % 2) == 0)
-	  {
-	    state++;
-	    if ((state == 7) && (type == 4))
-	      state = 9, maxval = 1;
-	    if ((state == 9) && (c == '\n'))
-	      {
-		state = 10;
-		break;
-	      }
-	  }
+	  get_resize_dimensions(width, height, fb_width, fb_height, &display_width, &display_height);
+	}
       
-      ptr += (size_t)i;
-      got -= i;
+      ptr += offset;
+      got -= (ssize_t)offset;
       if (got == 0)
 	continue;
       
@@ -156,47 +152,14 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   
  reading_done:
   
-  for (i = 0, state = 0; (size_t)i < ptr; i++)
-    if (state == 9)
-      {
-	if (c == '\n')
-	  {
-	    state = 10;
-	    break;
-	  }
-      }
-    else if (c = (*image)[i], comment)
-      comment = c != '\n';
-    else if (c == '#')
-      comment = 1;
-    else if ((state == 0) && (c == 'P'))
-      state++;
-    else if (((state == 1) || (state == 2)) && ('0' <= c) && (c <= '9'))
-      state = 2, type = type * 10 + (c & 15);
-    else if (((state == 3) || (state == 4)) && ('0' <= c) && (c <= '9'))
-      state = 4, width = width * 10 + (c & 15);
-    else if (((state == 5) || (state == 6)) && ('0' <= c) && (c <= '9'))
-      state = 6, height = height * 10 + (c & 15);
-    else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
-      state = 8, maxval = maxval * 10 + (c & 15);
-    else if ((state % 2) == 0)
-      {
-	state++;
-	if ((state == 7) && (type == 4))
-	  state = 9, maxval = 1;
-	if ((state == 9) && (c == '\n'))
-	  {
-	    state = 10;
-	    break;
-	  }
-      }
-  offset = (size_t)i;
+  pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
+  offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, ptr, *image);
   
   size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
   if (type == 4)
     size = (size + 7) / 8;
   
-  /* TODO check that `(state == 10) && (ptr - offset >= size)` */
+  /* TODO fail if ((state < 10) || (ptr - offset < size) || (maxval < 1)) */
   
   old = *image;
   *image = realloc(*image, (size + offset) * sizeof(char));
@@ -207,10 +170,36 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       *image = old;
     }
   
+  resize_vertically = get_resize_dimensions(width, height, fb_width, fb_height,
+					    &display_width, &display_height);
+  
+  if (resize_image(display_width, display_height, resize_vertically, *image, size + offset, &scaled_image))
+    goto fail;
+  
+  pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
+  offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, ptr, scaled_image);
+  
+  size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
+  if (type == 4)
+    size = (size + 7) / 8;
+  
+  /* TODO fail if ((state < 10) || (ptr - offset < size) || (maxval < 1)) */
+  
+  old = scaled_image;
+  scaled_image = realloc(scaled_image, (size + offset) * sizeof(char));
+  if (scaled_image == NULL)
+    {
+      perror(execname);
+      errno = 0;
+      scaled_image = old;
+    }
+  
   /* TODO display! */
   
+  free(scaled_image);
   return 0;
  fail:
+  free(scaled_image);
   return -1;
 }
 
@@ -220,6 +209,7 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
  */
 static void display_fb_terminate(void)
 {
+  /* TODO display_fb_terminate */
 }
 
 

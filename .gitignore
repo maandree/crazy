@@ -13,4 +13,13 @@ obj/
 *.gch
 *.so
 *.su
+*.pnm
+*.png
+*.tiff
+*.jpeg
+*.jpg
+*.pdf
+*.ps
+*.dvi
+*.info
 
