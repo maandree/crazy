@@ -36,7 +36,28 @@
 /**
  * `argv[0]` from `main`
  */
-static char* execname;
+char* execname;
+
+/**
+ * The index of the corner in the the top-left corner after transformation
+ */
+int c1 = 1;
+
+/**
+ * The index of the corner in the the top-right corner after transformation
+ */
+int c2 = 2;
+
+/**
+ * The index of the corner in the the bottom-left corner after transformation
+ */
+int c3 = 3;
+
+/**
+ * The index of the corner in the the bottom-right corner after transformation
+ */
+int c4 = 4;
+
 
 /**
  * The scanning device
@@ -72,27 +93,6 @@ static char* postimg = NULL;
  * Image display system
  */
 static display_t display;
-
-
-/**
- * The index of the corner in the the top-left corner after transformation
- */
-int c1 = 1;
-
-/**
- * The index of the corner in the the top-right corner after transformation
- */
-int c2 = 2;
-
-/**
- * The index of the corner in the the bottom-left corner after transformation
- */
-int c3 = 3;
-
-/**
- * The index of the corner in the the bottom-right corner after transformation
- */
-int c4 = 4;
 
 
 
@@ -160,6 +160,8 @@ static char** get_devices(ssize_t* restrict count)
       got = read(pipe_rw[0], buf, sizeof(buf) / sizeof(*buf));
       if (got == 0)
 	break;
+      else if ((got < 0) && (errno == EINTR))
+	continue;
       else if (got < 0)
 	goto fail;
       for (i = 0; i < got; i++)
@@ -311,7 +313,6 @@ static int scan_image(char** image)
   const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color";
   int pipe_rw[2];
   pid_t pid;
-  int status;
   
   *image = NULL;
   pipe_rw[0] = -1;

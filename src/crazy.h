@@ -20,6 +20,11 @@
 
 
 /**
+ * `argv[0]` from `main`
+ */
+extern char* execname;
+
+/**
  * The index of the corner in the the top-left corner after transformation
  */
 extern int c1;

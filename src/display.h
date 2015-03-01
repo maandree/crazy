@@ -46,7 +46,7 @@ typedef struct display
    * @param   crop_width   Output parameter for the width of the image after cropping, 0 if not cropped
    * @param   crop_height  Output parameter for the height of the image after cropping, 0 if not cropped
    * @param   split_x      Output parameter for where on the X-axis to split the cropped image, 0 if not splitted
-   * @return               Zero on success, -1 on error
+   * @return               Zero on success, -1 on error, `errno` will be set appropriately (may be zero)
    */
   int (*display)(int fd, pid_t pid, char** restrict image, size_t* restrict crop_x, size_t* restrict crop_y,
 		 size_t* restrict crop_width, size_t* restrict crop_height, size_t* restrict split_x);

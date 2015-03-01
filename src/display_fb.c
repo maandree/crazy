@@ -17,6 +17,9 @@
  */
 #include "display_fb.h"
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
 
@@ -45,7 +48,7 @@ static int display_fb_initialise(void)
  * @param   crop_width   Output parameter for the width of the image after cropping, 0 if not cropped
  * @param   crop_height  Output parameter for the height of the image after cropping, 0 if not cropped
  * @param   split_x      Output parameter for where on the X-axis to split the cropped image, 0 if not splitted
- * @return               Zero on success, -1 on error
+ * @return               Zero on success, -1 on error, `errno` will be set appropriately (may be zero)
  */
 static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* restrict crop_x,
 			      size_t* restrict crop_y, size_t* restrict crop_width,
@@ -53,14 +56,79 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 {
   pid_t reaped;
   int status;
-  (void) fd;
-  (void) image;
+  ssize_t got, i;
+  size_t ptr = 0, size = 8 << 10, offset;
+  char* old;
+  int state = 0, comment = 0, type = 0;
+  unsigned int maxval = 0;
+  size_t width = 0, height = 0;
+  char c;
+  
   (void) crop_x;
   (void) crop_y;
   (void) crop_width;
   (void) crop_height;
   (void) split_x;
   
+  if (fd < 0)
+    goto reading_done;
+  
+  *image = malloc(size * sizeof(char));
+  if (*image == NULL)
+    return -1;
+  for (;;)
+    {
+      if (size - ptr < 1024)
+	{
+	  old = *image;
+	  *image = realloc(*image, size <<= 1);
+	  if (*image == NULL)
+	    {
+	      *image = old;
+	      goto fail;
+	    }
+	}
+      got = read(fd, *image, size - ptr);
+      if (got == 0)
+	break;
+      else if ((got < 0) && (errno == EINTR))
+	continue;
+      else if (got < 0)
+	goto fail;
+      
+      for (i = 0; i < got; i++)
+	if (state == 9)
+	  {
+	    if (c == '\n')
+	      break;
+	  }
+	else if (c = (*image)[i], comment)
+	  comment = c != '\n';
+	else if (c == '#')
+	  comment = 1;
+	else if ((state == 0) && (c == 'P'))
+	  state++;
+	else if (((state == 1) || (state == 2)) && ('0' <= c) && (c <= '9'))
+	  state = 2, type = type * 10 + (c & 15);
+	else if (((state == 3) || (state == 4)) && ('0' <= c) && (c <= '9'))
+	  state = 4, width = width * 10 + (c & 15);
+	else if (((state == 5) || (state == 6)) && ('0' <= c) && (c <= '9'))
+	  state = 6, height = height * 10 + (c & 15);
+	else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
+	  state = 8, maxval = maxval * 10 + (c & 15);
+	else if ((state % 2) == 0)
+	  if ((++state == 9) && (c == '\n'))
+	    break;
+      
+      ptr += (size_t)i;
+      got -= i;
+      if (got == 0)
+	continue;
+      
+      /* TODO display! */
+      
+      ptr += (size_t)got;
+    }
   
   for (;;)
     {
@@ -78,9 +146,59 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 	}
     }
   
+ reading_done:
+  
+  for (i = 0, state = 0; (size_t)i < ptr; i++)
+    if (state == 9)
+      {
+	if (c == '\n')
+	  {
+	    state = 10;
+	    break;
+	  }
+      }
+    else if (c = (*image)[i], comment)
+      comment = c != '\n';
+    else if (c == '#')
+      comment = 1;
+    else if ((state == 0) && (c == 'P'))
+      state++;
+    else if (((state == 1) || (state == 2)) && ('0' <= c) && (c <= '9'))
+      state = 2, type = type * 10 + (c & 15);
+    else if (((state == 3) || (state == 4)) && ('0' <= c) && (c <= '9'))
+      state = 4, width = width * 10 + (c & 15);
+    else if (((state == 5) || (state == 6)) && ('0' <= c) && (c <= '9'))
+      state = 6, height = height * 10 + (c & 15);
+    else if (((state == 7) || (state == 8)) && ('0' <= c) && (c <= '9'))
+      state = 8, maxval = maxval * 10 + (c & 15);
+    else if ((state % 2) == 0)
+      if ((++state == 9) && (c == '\n'))
+	{
+	  state = 10;
+	  break;
+	}
+  offset = (size_t)i;
+  
+  size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
+  if (type == 4)
+    size = (size + 7) / 8;
+  
+  /* TODO check that `(state == 10) && (ptr - offset >= size)` */
+  
+  old = *image;
+  *image = realloc(*image, (size + offset) * sizeof(char));
+  if (*image == NULL)
+    {
+      perror(execname);
+      errno = 0;
+      *image = old;
+    }
+  
+  /* TODO display! */
+  
   return 0;
  fail:
-  return 1;
+  return -1;
 }
 
 
