@@ -159,7 +159,8 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   if (type == 4)
     size = (size + 7) / 8;
   
-  /* TODO fail if ((state < 10) || (ptr - offset < size) || (maxval < 1)) */
+  if ((state < 10) || (ptr - offset < size) || (maxval < 1))
+    goto incomplete_scan;
   
   old = *image;
   *image = realloc(*image, (size + offset) * sizeof(char));
@@ -173,17 +174,19 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   resize_vertically = get_resize_dimensions(width, height, fb_width, fb_height,
 					    &display_width, &display_height);
   
-  if (resize_image(display_width, display_height, resize_vertically, *image, size + offset, &scaled_image))
+  if (resize_image(display_width, display_height, resize_vertically,
+		   *image, size + offset, &scaled_image, &ptr))
     goto fail;
   
-  pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
-  offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, ptr, scaled_image);
+  pnm_init_parse_header(&state, &comment, &type, &maxval, &display_width, &height);
+  offset = pnm_parse_header(&state, &comment, &type, &maxval, &display_width, &height, ptr, scaled_image);
   
-  size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
+  size = display_width * display_height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
   if (type == 4)
     size = (size + 7) / 8;
   
-  /* TODO fail if ((state < 10) || (ptr - offset < size) || (maxval < 1)) */
+  if ((state < 10) || (ptr - offset < size) || (maxval < 1))
+    goto incomplete_scan;
   
   old = scaled_image;
   scaled_image = realloc(scaled_image, (size + offset) * sizeof(char));
@@ -201,6 +204,9 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
  fail:
   free(scaled_image);
   return -1;
+ incomplete_scan:
+  fprintf(stderr, "%s: scan failure, image incomplete", execname);
+  goto fail;
 }
 
 

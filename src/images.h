@@ -76,12 +76,13 @@ int get_resize_dimensions(size_t img_width, size_t img_height, size_t max_width,
  * @param   height             The new height of the image
  * @param   resize_vertically  The return value of `get_resize_dimensions`
  * @param   image              The image to resize
- * @param   n                  The number of bytes stored in `image`
+ * @param   image_size         The number of bytes stored in `image`
  * @param   scaled             Output parameter for the resized image
+ * @param   scaled_size        Output parameter for the number of bytes stored in `scaled`
  * @return                     Zero on success, -1 on error
  */
-int resize_image(size_t width, size_t height, int resize_vertically,
-		 const char* image, size_t n, char** restrict scaled);
+int resize_image(size_t width, size_t height, int resize_vertically, const char* image,
+		 size_t image_size, char** restrict scaled, size_t* restrict scaled_size);
 
 
 #endif

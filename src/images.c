@@ -126,12 +126,13 @@ int get_resize_dimensions(size_t img_width, size_t img_height, size_t max_width,
  * @param   height             The new height of the image
  * @param   resize_vertically  The return value of `get_resize_dimensions`
  * @param   image              The image to resize
- * @param   n                  The number of bytes stored in `image`
+ * @param   image_size         The number of bytes stored in `image`
  * @param   scaled             Output parameter for the resized image
+ * @param   scaled_size        Output parameter for the number of bytes stored in `scaled`
  * @return                     Zero on success, -1 on error
  */
-int resize_image(size_t width, size_t height, int resize_vertically,
-		 const char* image, size_t n, char** restrict scaled)
+int resize_image(size_t width, size_t height, int resize_vertically, const char* image,
+		 size_t image_size, char** restrict scaled, size_t* restrict scaled_size)
 {
   char scale[3 * sizeof(size_t) + 2];
   pid_t pid_1 = -1, pid_2 = -1, reaped;
@@ -143,6 +144,7 @@ int resize_image(size_t width, size_t height, int resize_vertically,
   char* old;
   
   *scaled = NULL;
+  *scaled_size = 0;
   
   if (resize_vertically)  sprintf(scale, "x%zu", height);
   else                    sprintf(scale, "%zux", width);
@@ -193,9 +195,9 @@ int resize_image(size_t width, size_t height, int resize_vertically,
     {
       close(out_rw[0]), out_rw[0] = -1;
       
-      while (ptr < n)
+      while (ptr < image_size)
 	{
-	  got = write(in_rw[1], image + ptr, n - ptr);
+	  got = write(in_rw[1], image + ptr, image_size - ptr);
 	  if (got < 0)
 	    goto fail;
 	  ptr += (size_t)got;
@@ -232,6 +234,7 @@ int resize_image(size_t width, size_t height, int resize_vertically,
       
       ptr += (size_t)got;
     }
+  *scaled_size = ptr;
   
   for (;;)
     if (reaped = wait(&status), reaped < 0)
@@ -266,6 +269,8 @@ int resize_image(size_t width, size_t height, int resize_vertically,
   if (in_rw[1] >= 0)   close(in_rw[1]);
   if (out_rw[0] >= 0)  close(out_rw[0]);
   if (out_rw[1] >= 0)  close(out_rw[1]);
+  free(*scaled), *scaled = NULL;
+  *scaled_size = 0;
   if ((pid_1 == 0) && (pid_2 == 0))
     exit(1);
   return -1;
