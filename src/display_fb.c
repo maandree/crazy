@@ -21,23 +21,67 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stropts.h>
+#include <stdint.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <linux/fb.h>
 
 #include "crazy.h"
 #include "images.h"
 
 
+/**
+ * The psuedodevice pathname used to access a framebuffer
+ */
+#ifndef FB_DEVICE
+# define FB_DEVICE  "/dev/fb0"
+#endif
+
+
 
 /**
- * The width of the frame buffer
+ * The width of the framebuffer
  */
 static size_t fb_width;
 
 /**
- * The height of the frame buffer
+ * The height of the framebuffer
  */
 static size_t fb_height;
 
+/**
+ * The file descriptor for the framebuffer
+ */
+static int fb_fd = -1;
+
+/**
+ * Framebuffer pointer
+ */
+static int8_t* fb_mem = MAP_FAILED;
+
+/**
+ * Increment for `mem` to move to next pixel on the line
+ */
+static size_t fb_bytes_per_pixel;
+
+/**
+ * Increment for `mem` to move down one line but stay in the same column
+ */
+static size_t fb_line_length;
+
+
+
+/**
+ * Terminate the display system
+ */
+static void display_fb_terminate(void)
+{
+  if (fb_fd >= 0)
+    close(fb_fd), fb_fd = -1;
+}
 
 
 /**
@@ -47,9 +91,138 @@ static size_t fb_height;
  */
 static int display_fb_initialise(void)
 {
-  /* TODO display_fb_initialise */
+  struct fb_fix_screeninfo fix_info;
+  struct fb_var_screeninfo var_info;
+  int fds[256];
+  long ptr = 0;
+  int saved_errno;
+  
+  fb_fd = open(FB_DEVICE, O_RDWR | O_CLOEXEC);
+  if (fb_fd < 0)
+    goto fail;
+  while ((fb_fd == STDIN_FILENO) || (fb_fd == STDOUT_FILENO) || (fb_fd == STDERR_FILENO))
+    {
+      fds[ptr++] = fb_fd;
+      fb_fd = dup(fb_fd);
+      if (fb_fd < 0)
+	goto fail;
+    }
+  while (ptr--)
+    close(fds[ptr]);
+  
+  if (ioctl(fb_fd, (unsigned long int)FBIOGET_FSCREENINFO, &fix_info) ||
+      ioctl(fb_fd, (unsigned long int)FBIOGET_VSCREENINFO, &var_info))
+    goto fail;
+  
+  fb_mem = mmap(NULL, (size_t)(fix_info.smem_len), PROT_WRITE, MAP_PRIVATE, fb_fd, (off_t)0);
+  if (fb_mem == MAP_FAILED)
+    goto fail;
+  
+  fb_mem += var_info.xoffset * (var_info.bits_per_pixel / 8);
+  fb_mem += var_info.yoffset * fix_info.line_length;
+  
+  fb_width           = var_info.xres;
+  fb_height          = var_info.yres;
+  fb_bytes_per_pixel = var_info.bits_per_pixel / 8;
+  fb_line_length     = fix_info.line_length;
   
   return 0;
+ fail:
+  saved_errno = errno;
+  while (ptr--)
+    close(fds[ptr]);
+  display_fb_terminate();
+  errno = saved_errno;
+  return -1;
+}
+
+
+/**
+ * Draw an PNM image onto the framebuffer
+ * 
+ * @param  xoff       The where onto the framebuffer the top-left corner of the image is drawn on the X-axis
+ * @param  yoff       The where onto the framebuffer the top-left corner of the image is drawn on the Y-axis
+ * @param  width      The width of the image
+ * @param  height     The height of the image
+ * @param  maxval     The maximum value subpixel can have
+ * @param  type       4: raw lineart, 5: raw greyscale, 6: raw colour
+ * @param  pixeldata  Pixel data of the type described by `type`
+ */
+static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t height,
+				  int maxval, int type, const unsigned char* restrict pixeldata)
+{
+  int8_t* mem = fb_mem + yoff * fb_line_length + xoff * fb_bytes_per_pixel;
+  size_t next_line = fb_line_length - width * fb_bytes_per_pixel;
+  size_t i, x, y;
+  uint32_t maxval_;
+  
+  if (maxval > 255)
+    maxval >>= 7;
+  maxval_ = (uint32_t)maxval;
+  
+  if (type == 4)
+    for (i = y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, i++, mem += fb_bytes_per_pixel)
+	*(uint32_t*)mem = (uint32_t)((pixeldata[x >> 3] & (1 << (i & 7))) ? ~0 : 0);
+  else if ((type == 5) && (maxval == 255))
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour = (uint32_t)*pixeldata++;
+	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
+	}
+  else if ((type == 5) && (maxval < 255))
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour = (uint32_t)*pixeldata++;
+	  colour = 255 * colour / maxval_;
+	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
+	}
+  else if (type == 5)
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour = (uint32_t)*pixeldata++ << 1;
+	  colour |= (uint32_t)(*pixeldata++) >> 7;
+	  colour = 511 * colour / maxval_;
+	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
+	}
+  else if ((type == 6) && (maxval == 255))
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour = (uint32_t)*pixeldata++ << 16;
+	  colour |= (uint32_t)*pixeldata++ << 8;
+	  colour |= (uint32_t)*pixeldata++;
+	  *(uint32_t*)mem = colour;
+	}
+  else if ((type == 6) && (maxval < 255))
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour;
+	  colour  = (255 * (uint32_t)*pixeldata++ / maxval_) << 16;
+	  colour |= (255 * (uint32_t)*pixeldata++ / maxval_) <<  8;
+	  colour |=  255 * (uint32_t)*pixeldata++ / maxval_;
+	  *(uint32_t*)mem = colour;
+	}
+  else if (type == 6)
+    for (y = 0; y < height; y++, mem += next_line)
+      for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
+	{
+	  uint32_t colour_r, colour_g, colour_b;
+	  colour_r  = (uint32_t)*pixeldata++ << 1;
+	  colour_r |= (uint32_t)*pixeldata++ >> 7;
+	  colour_g  = (uint32_t)*pixeldata++ << 1;
+	  colour_g |= (uint32_t)*pixeldata++ >> 7;
+	  colour_b  = (uint32_t)*pixeldata++ << 1;
+	  colour_b |= (uint32_t)*pixeldata++ >> 7;
+	  colour_r = 511 * colour_r / maxval_;
+	  colour_g = 511 * colour_g / maxval_;
+	  colour_b = 511 * colour_b / maxval_;
+	  *(uint32_t*)mem = (colour_r << 16) | (colour_g << 8) | colour_b;
+	}
 }
 
 
@@ -209,15 +382,6 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   free(scaled_image);
   errno = saved_errno;
   return -1;
-}
-
-
-/**
- * Terminate the display system
- */
-static void display_fb_terminate(void)
-{
-  /* TODO display_fb_terminate */
 }
 
 
