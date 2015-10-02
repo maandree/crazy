@@ -98,11 +98,17 @@ static int display_fb_initialise(void)
   long ptr = 0;
   int saved_errno;
   
+  /* Get file descriptor to framebuffer, must not be stdin/stdout/stderr. */
   fb_fd = open(FB_DEVICE, O_RDWR | O_CLOEXEC);
   if (fb_fd < 0)
     goto fail;
   while ((fb_fd == STDIN_FILENO) || (fb_fd == STDOUT_FILENO) || (fb_fd == STDERR_FILENO))
     {
+      if (ptr == 256)
+	{
+	  errno = EMFILE;
+	  goto fail;
+	}
       fds[ptr++] = fb_fd;
       fb_fd = dup(fb_fd);
       if (fb_fd < 0)
@@ -111,17 +117,21 @@ static int display_fb_initialise(void)
   while (ptr--)
     close(fds[ptr]);
   
+  /* Acquire screen information. */
   if (ioctl(fb_fd, (unsigned long int)FBIOGET_FSCREENINFO, &fix_info) ||
       ioctl(fb_fd, (unsigned long int)FBIOGET_VSCREENINFO, &var_info))
     goto fail;
   
+  /* Memory map the framebuffer. */
   fb_mem = mmap(NULL, (size_t)(fix_info.smem_len), PROT_WRITE, MAP_PRIVATE, fb_fd, (off_t)0);
   if (fb_mem == MAP_FAILED)
     goto fail;
   
+  /* Skip offset in framebuffer. */
   fb_mem += var_info.xoffset * (var_info.bits_per_pixel / 8);
   fb_mem += var_info.yoffset * fix_info.line_length;
   
+  /* Store framebuffer information. */
   fb_width           = var_info.xres;
   fb_height          = var_info.yres;
   fb_bytes_per_pixel = var_info.bits_per_pixel / 8;
@@ -161,10 +171,14 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
     maxval >>= 7;
   maxval_ = (uint32_t)maxval;
   
+  
+  /* Packed lineart. (lineart = monochrome) */
   if (type == 4)
     for (i = y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, i++, mem += fb_bytes_per_pixel)
 	*(uint32_t*)mem = (uint32_t)((pixeldata[x >> 3] & (1 << (i & 7))) ? ~0 : 0);
+  
+  /* Greyscale. Normal colour resolution. */
   else if ((type == 5) && (maxval == 255))
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
@@ -172,6 +186,7 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
 	  uint32_t colour = (uint32_t)*pixeldata++;
 	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
 	}
+  /* Greyscale. Low colour resolution. */
   else if ((type == 5) && (maxval < 255))
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
@@ -180,6 +195,7 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
 	  colour = 255 * colour / maxval_;
 	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
 	}
+  /* Greyscale. High colour resolution. */
   else if (type == 5)
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
@@ -189,6 +205,8 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
 	  colour = 511 * colour / maxval_;
 	  *(uint32_t*)mem = colour | (colour << 8) | (colour << 16);
 	}
+  
+  /* Coloured. Normal colour resolution. */
   else if ((type == 6) && (maxval == 255))
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
@@ -198,6 +216,7 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
 	  colour |= (uint32_t)*pixeldata++;
 	  *(uint32_t*)mem = colour;
 	}
+  /* Coloured. Low colour resolution. */
   else if ((type == 6) && (maxval < 255))
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
@@ -208,6 +227,7 @@ static void display_fb_draw_image(size_t xoff, size_t yoff, size_t width, size_t
 	  colour |=  255 * (uint32_t)*pixeldata++ / maxval_;
 	  *(uint32_t*)mem = colour;
 	}
+  /* Coloured. High colour resolution. */
   else if (type == 6)
     for (y = 0; y < height; y++, mem += next_line)
       for (x = 0; x < width; x++, mem += fb_bytes_per_pixel)
