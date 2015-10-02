@@ -282,15 +282,21 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   (void) crop_height;
   (void) split_x;
   
+  /* Blank out the screen. */
+  system("cat /dev/zero > " FB_DEVICE);
+  
+  /* If reading from `*image`, we are not scanning. */
   if (fd < 0)
     goto reading_done;
   
+  /* Read image that is being scanned. */
   pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
   *image = malloc(size * sizeof(char));
   if (*image == NULL)
     goto fail;
   for (;;)
     {
+      /* Read. */
       if (size - ptr < 1024)
 	{
 	  old = *image;
@@ -309,25 +315,31 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       else if (got < 0)
 	goto fail;
       
+      /* Parse header and get display dimension. */
       offset = 0;
       if (state < 10)
 	offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, (size_t)got, *image + ptr);
       if (state == 10)
 	{
 	  state++;
-	  get_resize_dimensions(width, height, fb_width, fb_height, &display_width, &display_height);
+	  resize_vertically = get_resize_dimensions(width, height, fb_width, fb_height,
+						    &display_width, &display_height);
 	}
       
+      /* Skip pass headers. */
       ptr += offset;
       got -= (ssize_t)offset;
       if (got == 0)
 	continue;
       
-      /* TODO display! */
+      /* Display partially scanned image. */
+      /*   TODO display!   */
       
+      /* Update buffer pointer. */
       ptr += (size_t)got;
     }
   
+  /* Reap scanner process. */
   for (;;)
     {
       reaped = wait(&status);
@@ -344,18 +356,23 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
 	}
     }
   
+  /* Display wholly scanned image. */
  reading_done:
   
+  /* Parse headers. */
   pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
   offset = pnm_parse_header(&state, &comment, &type, &maxval, &width, &height, ptr, *image);
   
+  /* Get binary size of the image payload. */
   size = width * height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
   if (type == 4)
     size = (size + 7) / 8;
   
-  if ((state < 10) || (ptr - offset < size) || (maxval < 1))
+  /* Check that the image is complete. */
+  if ((state < 10) || (ptr - offset < size) || (maxval < 1)) /* Note: hypercomplete is allowed. */
     goto incomplete_scan;
   
+  /* Minimise the image allocation. */
   old = *image;
   *image = realloc(*image, (size + offset) * sizeof(char));
   if (*image == NULL)
@@ -365,23 +382,27 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       *image = old;
     }
   
+  /* Resize image to fit the screen. */
   resize_vertically = get_resize_dimensions(width, height, fb_width, fb_height,
 					    &display_width, &display_height);
-  
   if (resize_image(display_width, display_height, resize_vertically,
 		   *image, size + offset, &scaled_image, &ptr))
     goto fail;
   
+  /* Parse headers of the resized image. */
   pnm_init_parse_header(&state, &comment, &type, &maxval, &display_width, &height);
   offset = pnm_parse_header(&state, &comment, &type, &maxval, &display_width, &height, ptr, scaled_image);
   
+  /* Get binary size of the resized image's payload. */
   size = display_width * display_height * (maxval <= 0x100 ? 1 : 2) * (type == 6 ? 3 : 1);
   if (type == 4)
     size = (size + 7) / 8;
   
+  /* Check that the resize was not cancelled.. */
   if ((state < 10) || (ptr - offset < size) || (maxval < 1))
     goto incomplete_scan;
   
+  /* Minimise the image allocation. */
   old = scaled_image;
   scaled_image = realloc(scaled_image, (size + offset) * sizeof(char));
   if (scaled_image == NULL)
@@ -391,8 +412,10 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       scaled_image = old;
     }
   
-  /* TODO display! */
+  /* Display resized image. */
+  /*   TODO display!   */
   
+  /* Done. */
   free(scaled_image);
   return 0;
  incomplete_scan:
