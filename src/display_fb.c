@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "display_fb.h"
+/* TODO This subsystem should be optional (making linux optional.) */
 
 #include <stdlib.h>
 #include <stdio.h>
