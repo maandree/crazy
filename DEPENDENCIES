@@ -5,6 +5,7 @@ RUNTIME DEPENDENCIES:
 	sane
 	coreutils
 	sh
+	imagemagick
 
 
 BUILD DEPENDENCIES:
