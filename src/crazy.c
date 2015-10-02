@@ -112,6 +112,7 @@ static char** get_devices(ssize_t* restrict count)
   size_t ptr, allocated;
   int state = 0, status;
   
+  /* Set up communication channel. */
   if (pipe(pipe_rw) < 0)
     {
       perror(execname);
@@ -119,6 +120,7 @@ static char** get_devices(ssize_t* restrict count)
       return NULL;
     }
   
+  /* Create device lister process. */
   pid = fork();
   if (pid < 0)
     {
@@ -129,6 +131,7 @@ static char** get_devices(ssize_t* restrict count)
       return NULL;
     }
   
+  /* Start listing devices. */
   if (pid == 0)
     {
       setenv("LANG", "C", 1);
@@ -145,6 +148,7 @@ static char** get_devices(ssize_t* restrict count)
     }
   
   close(pipe_rw[1]);
+  /* Allocate device list. */
   *count = 0;
   rc = malloc(sizeof(char*));
   if (rc == NULL)
@@ -155,8 +159,10 @@ static char** get_devices(ssize_t* restrict count)
     goto fail;
   state = 0;
   
+  /* Retrieve device list. */
   for (;;)
     {
+      /* Read. */
       got = read(pipe_rw[0], buf, sizeof(buf) / sizeof(*buf));
       if (got == 0)
 	break;
@@ -164,6 +170,7 @@ static char** get_devices(ssize_t* restrict count)
 	continue;
       else if (got < 0)
 	goto fail;
+      /* Parse. */
       for (i = 0; i < got; i++)
 	{
 	  if (state == 0)
@@ -206,6 +213,7 @@ static char** get_devices(ssize_t* restrict count)
 	}
     }
   
+  /* Reap device lister. */
   for (;;)
     {
       reaped = wait(&status);
@@ -222,6 +230,7 @@ static char** get_devices(ssize_t* restrict count)
 	}
     }
   
+  /* Done. */
   free(rc[*count]);
   close(pipe_rw[0]);
   return rc;
