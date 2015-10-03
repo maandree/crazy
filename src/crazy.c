@@ -398,23 +398,27 @@ static int scan_image(char** image)
  */
 static void apply_transformation(int r, int x, int y)
 {
+#define swap(a, b)  (a ^= b, b ^= a, a ^= b)
+  
   for (; r; r -= 90)
     {
-      /* Transpose */
-      c2 ^= c3, c3 ^= c2, c2 ^= c3;
+      /* Transpose. */
+      swap(c2, c3);
       
-      /* Mirror x-axis */
-      c1 ^= c2, c2 ^= c1, c1 ^= c2;
-      c3 ^= c4, c4 ^= c3, c3 ^= c4;
+      /* Mirror x-axis. */
+      swap(c1, c2);
+      swap(c3, c4);
     }
   
-  /* Mirror x-axis */
-  if (x)  c1 ^= c2, c2 ^= c1, c1 ^= c2;
-  if (x)  c3 ^= c4, c4 ^= c3, c3 ^= c4;
+  /* Mirror x-axis. */
+  if (x)  swap(c1, c2);
+  if (x)  swap(c3, c4);
   
-  /* Mirror y-axis */
-  if (y)  c1 ^= c3, c3 ^= c1, c1 ^= c3;
-  if (y)  c2 ^= c4, c4 ^= c2, c2 ^= c4;
+  /* Mirror y-axis. */
+  if (y)  swap(c1, c3);
+  if (y)  swap(c2, c4);
+  
+#undef swap
 }
 
 
