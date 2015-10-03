@@ -143,6 +143,8 @@ static char** get_devices(ssize_t* restrict count)
 	}
       close(pipe_rw[0]);
       execlp("sh", "sh", "-c", "scanimage -L | cut -d ' ' -f 2", NULL);
+      /* Output line-format: device `DEVICE_ADDRESS' is a DEVICE_NAME_AND_TYPE */
+      /* After cut: `DEVICE_ADDRESS' */
       perror(execname);
       exit(1);
     }
@@ -173,18 +175,24 @@ static char** get_devices(ssize_t* restrict count)
       /* Parse. */
       for (i = 0; i < got; i++)
 	{
+	  /* Skip first character. (` is currently used, who knows, maybe it will be ‘ in the future.) */
 	  if (state == 0)
 	    state++;
 	  else if ((state == 1) && ((buf[i] & 0xC0) != 0x80))
 	    state++;
+	  /* Copy and split. */
 	  if (buf[i] == '\n')
 	    {
+	      /* Split. */
 	      char** old;
 	      state = 0;
+	      /* Skip last character. (' is currently used, who knows, maybe it will be ’ in the future.) */
 	      if ((rc[*count][--ptr] & 0x80))
 		while ((rc[*count][ptr - 1] & 0xC0) != 0x80)
 		  ptr--;
+	      /* NUL-terminate item. */
 	      rc[*count][ptr] = '\0';
+	      /* Extend list for another item. */
 	      rc = realloc(old = rc, (size_t)(++*count) * sizeof(char*));
 	      if (rc == NULL)
 		{
@@ -198,6 +206,7 @@ static char** get_devices(ssize_t* restrict count)
 	    }
 	  else if (state == 2)
 	    {
+	      /* Copy. */
 	      char* old;
 	      if (ptr == allocated)
 		{
