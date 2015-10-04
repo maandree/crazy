@@ -438,9 +438,11 @@ static void apply_transformation(int r, int x, int y)
  */
 int main(int argc, char* argv[])
 {
+#ifdef __GNUC__
 # pragma GCC diagnostic push
 # pragma GCC diagnostic ignored "-Waggregate-return"
 # pragma GCC diagnostic ignored "-Wcast-qual"
+#endif
   
   int rc = 0;
   char** args;
@@ -658,6 +660,8 @@ int main(int argc, char* argv[])
   rc = 1;
   goto exit;
   
+#ifdef __GNUC__
 # pragma GCC diagnostic pop
+#endif
 }
 
