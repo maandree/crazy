@@ -452,6 +452,8 @@ int main(int argc, char* argv[])
   int display_initialised = 0;
   
   
+  /* Parse command line. */
+  
   execname = argv[0];
   
   args_init((char*)"A crazy simple and usable scanning utility",
@@ -580,7 +582,9 @@ int main(int argc, char* argv[])
 	goto invalid_opts;
     }
   
+  /* Start. */
   
+  /* Find scanner. */
   if (device == NULL)
     {
       printf("Please wait while searching for scanners...\n");
@@ -600,6 +604,7 @@ int main(int argc, char* argv[])
       if (rc)
 	goto exit;
     }
+  /* Select colour level. */
   if (mode < 0)
     {
       char* mode_;
@@ -611,6 +616,7 @@ int main(int argc, char* argv[])
       else if (!strcmp(mode_, "grey"))        mode = 1;
       else if (!strcmp(mode_, "colour"))      mode = 2;
     }
+  /* Select resolution. */
   if (dpi < 0)
     {
       char* dpi_;
@@ -625,9 +631,11 @@ int main(int argc, char* argv[])
     }
   
   
+  /* Get transformation. */
   apply_transformation(rotation, mirrorx, mirrory);
   
   
+  /* Select display system. */
   display_fb_get(&display);
   /*
   if (strchr(getenv("DISPLAY") ?: "", ':'))
@@ -635,14 +643,15 @@ int main(int argc, char* argv[])
   */
   
   
+  /* Start display system. */
   if (display.initialise())
     goto fail;
   display_initialised = 1;
   
   
-  /* TODO */
+  /* TODO  Start scanning. */
   
-  
+  /* Done. */
  exit:
   if (display_initialised)
     display.terminate();
