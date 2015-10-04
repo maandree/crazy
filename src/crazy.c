@@ -329,14 +329,16 @@ static int scan_image(char** image)
 {
   char* sh = NULL;
   ssize_t n;
-  const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color";
+  const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color"; /* [sic!] */
   int pipe_rw[2];
   pid_t pid;
   
+  /* Init. */
   *image = NULL;
   pipe_rw[0] = -1;
   pipe_rw[1] = -1;
   
+  /* Construct scan command. */
   snprintf(NULL, 0, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s%zn",
 	   device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "", &n);
   
@@ -347,15 +349,18 @@ static int scan_image(char** image)
   sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s",
 	  device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "");
   
+  /* Set up communication channel. */
   if (pipe(pipe_rw) < 0)
     goto fail;
   
+  /* Start scanner process. */
   pid = fork();
   if (pid < 0)
     goto fail;
   
   if (pid == 0)
     {
+      /* Scan image. */
       if (pipe_rw[1] != STDOUT_FILENO)
 	{
 	  close(STDOUT_FILENO);
@@ -369,12 +374,14 @@ static int scan_image(char** image)
       exit(1);
     }
   
+  /* Parent process continues here. */
   free(sh);
   sh = NULL;
   close(pipe_rw[1]);
   
   /* TODO */
   
+  /* Done. */
   close(pipe_rw[0]);
   return 0;
  fail:
@@ -619,7 +626,6 @@ int main(int argc, char* argv[])
   apply_transformation(rotation, mirrorx, mirrory);
   
   
-  /* TODO support should be optional */
   display_fb_get(&display);
   /*
   if (strchr(getenv("DISPLAY") ?: "", ':'))
