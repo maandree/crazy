@@ -151,4 +151,5 @@ crazy-shift [--] <first> <shift>
 
 crazy-compile
   "Create a multipage-document from a directory of images"
+  Calls: gm convert -adjoin *.pnm pdf:-
 
