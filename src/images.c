@@ -180,7 +180,7 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
 	  close(out_rw[1]), out_rw[1] = -1;
 	}
       
-      execlp("convert", "convert", "-", "-format", "pnm", "-resize", scale, "-filter", "Lanczos", "-", NULL);
+      execlp("gm", "gm", "convert", "-", "-format", "pnm", "-resize", scale, "-filter", "Lanczos", "-", NULL);
       goto fail;
     }
   

@@ -5,7 +5,7 @@ RUNTIME DEPENDENCIES:
 	sane
 	coreutils
 	sh
-	imagemagick
+	graphicsmagick
 	linux
 
 
