@@ -241,6 +241,7 @@ int main(int argc, char* argv[])
  invalid_opts:
   args_help();
  fail:
+  perror(*argv);
   rc = 1;
   goto exit;
   
