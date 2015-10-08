@@ -19,7 +19,7 @@
 #include <stddef.h>
 #include <alloca.h>
 #include <stdio.h>
-#include <string.h>
+#include <errno.h>
 
 #include <argparser.h>
 
@@ -60,49 +60,88 @@ static char* buffer2;
 
 
 /**
- * Perform merge
- * 
- * @param   input_dirs    The directories to merge
- * @param   input_dirs_n  The number of directories to merge
- * @param   output_dir    The output directory
- * @param   mode          `MODE_COPY`, `MODE_SYMLINK`, `MODE_LINK`, or `MODE_MOVE`
- * @return                Zero on success, -1 on error
+ * Information for a split
  */
-static int perform_merge(char** input_dirs, size_t input_dirs_n, char* output_dir, int mode)
+struct split
 {
-  char* stopped = alloca(input_dirs_n * sizeof(char));
-  size_t in = 1, out = 1, dir = 0, stop_count = 0;
+  /**
+   * The first image
+   */
+  size_t first;
   
-  memset(stopped, 0, input_dirs_n * sizeof(char));
+  /**
+   * The index difference between successive images
+   */
+  size_t diff;
   
-  for (; stop_count < input_dirs_n; in += !(dir = (dir + 1) % input_dirs_n))
+  /**
+   * The image after the last image;
+   */
+  size_t end;
+  
+  /**
+   * The output directory
+   */
+  char* dir;
+};
+
+
+
+/**
+ * Perform split
+ * 
+ * @param   splits  Information about the splits
+ * @param   count   The number of splits
+ * @param   mode    `MODE_COPY`, `MODE_SYMLINK`, `MODE_LINK`, or `MODE_MOVE`
+ * @return          Zero on success, -1 on error
+ */
+static int perform_split(struct split* splits, size_t count, int mode)
+{
+  struct split s;
+  size_t in, out;
+  
+  while (count--)
     {
-      if (stopped[dir])
-	continue;
-      
-      sprintf(buffer1, "%s/%zu.pnm", input_dirs[dir], in);
-      if (access(buffer1, F_OK))
+      s = splits[count];
+      out = 0;
+      for (in = s.first; in < s.end; in += s.diff)
 	{
-	  stopped[dir] = 1;
-	  stop_count++;
-	  continue;
-	}
-      
-      sprintf(buffer2, "%s/%zu.pnm", output_dir, out++);
-      switch (mode)
-	{
-	case MODE_COPY:     if (copyfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_SYMLINK:  if (symlfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_LINK:     if (linkfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_MOVE:     if (movefile(buffer1, buffer2)) goto fail;  break;
-	default:
-	  return abort(), -1;
+	  sprintf(buffer1, "%zu.pnm", in);
+	  sprintf(buffer2, "%s/%zu.pnm", s.dir, out++);
+	  switch (mode)
+	    {
+	    case MODE_COPY:     if (copyfile(buffer1, buffer2)) goto fail;  break;
+	    case MODE_SYMLINK:  if (symlfile(buffer1, buffer2)) goto fail;  break;
+	    case MODE_LINK:     if (linkfile(buffer1, buffer2)) goto fail;  break;
+	    case MODE_MOVE:     if (movefile(buffer1, buffer2)) goto fail;  break;
+	    default:
+	      return abort(), -1;
+	    }
 	}
     }
   
   return 0;
  fail:
   return -1;
+}
+
+
+/**
+ * Convert a `char*` to `a size_t`
+ * 
+ * @param   str  The `char*`
+ * @return       The `size_t`
+ */
+static size_t parse_size(const char* str)
+{
+  char buf[3 * sizeof(size_t) + 2];
+  size_t rc;
+  
+  rc = (size_t)strtoumax(str, NULL, 10);
+  if (sprintf(buf, "%zu", rc), strcmp(buf, str))
+    return 0;
+  
+  return rc;
 }
 
 
@@ -124,10 +163,11 @@ int main(int argc, char* argv[])
   int rc = 0, mode = MODE_COPY;
   int f_symlink = 0, f_hardlink = 0, f_move = 0;
   size_t maxlen = 0, i, n;
+  struct split* splits;
   
   
-  args_init((char*)"Zigzag-merge directories",
-	    (char*)"crazy-merge [-s | -h | -m] [--] <input-dir>... <output-dir>",
+  args_init((char*)"Split a directory of images in a pattern",
+	    (char*)"crazy-cat [-s | -h | -m] [--] (<first> <gaps+1> <last> <output-dir>)...",
 	    NULL, NULL, 1, 0, args_standard_abbreviations);
   
   
@@ -153,7 +193,7 @@ int main(int argc, char* argv[])
       args_help();
       goto exit;
     }
-  if (args_unrecognised_count || (args_files_count < 3))
+  if (args_unrecognised_count || (args_files_count & 3) || !args_files_count)
     goto invalid_opts;
   
   f_symlink  = args_opts_used((char*)"--symlink");
@@ -163,20 +203,35 @@ int main(int argc, char* argv[])
     goto invalid_opts;
   
   
-  for (i = 0; i < args_files_count; i++)
-    n = strlen(args_files[i]), maxlen = maxlen < n ? n : maxlen;
+  splits = alloca((args_files_count >> 2) * sizeof(struct split));
+  for (i = 0; i < args_files_count; i += 4)
+    {
+      splits[i].first = parse_size(args_files[i | 0]);
+      splits[i].diff  = parse_size(args_files[i | 1]);
+      splits[i].end   = parse_size(args_files[i | 2]);
+      splits[i].dir   = args_files[i | 3];
+      
+      if ((splits[i].first == 0) || (splits[i].diff == 0))  goto invalid_opts;
+      if ((splits[i].last  == 0) || (splits[i].dir  == 0))  goto invalid_opts;
+      if (splits[i].end++ == SIZE_MAX)
+	{
+	  errno = ERANGE;
+	  goto fail;
+	}
+      
+      n = strlen(args_files[i | 3]), maxlen = maxlen < n ? n : maxlen;
+      if (mkdirs(args_files[i | 3]))
+	goto fail;
+    }
   n = sizeof("/.pnm") + (3 * sizeof(size_t) + n) * sizeof(char);
   buffer1 = alloca(n);
   buffer2 = alloca(n);
   
   
-  if (mkdirs(args_files[args_files_count - 1]))
-    goto fail;
-  
   if (f_symlink)   mode = MODE_SYMLINK;
   if (f_hardlink)  mode = MODE_LINK;
   if (f_move)      mode = MODE_MOVE;
-  if (perform_merge(args_files, args_files_count - 1, args_files[args_files_count - 1], mode))
+  if (perform_split(splits, args_files_count >> 2, mode))
     goto fail;
   
   

@@ -160,7 +160,7 @@ int main(int argc, char* argv[])
   buffer2 = alloca(n);
   
   
-  if (mkdirs(output_dir))
+  if (mkdirs(args_files[args_files_count - 1]))
     goto fail;
   
   if (f_symlink)   mode = MODE_SYMLINK;

@@ -118,9 +118,9 @@ int main(int argc, char* argv[])
   first = (size_t)strtoumax(s_first = args_files[0], NULL, 10);
   shift = (size_t)strtoumax(s_shift = args_files[1], NULL, 10);
   
-  if (sprintf("%zu", first), strcmp(buf, s_first))  goto invalid_opts;
-  if (sprintf("%zu", shift), strcmp(buf, s_shift))  goto invalid_opts;
-  if (shift == 0)                                   goto invalid_opts;
+  if (sprintf(buf, "%zu", first), strcmp(buf, s_first))  goto invalid_opts;
+  if (sprintf(buf, "%zu", shift), strcmp(buf, s_shift))  goto invalid_opts;
+  if (shift == 0)                                        goto invalid_opts;
   
   
   if (perform_shift(first, shift))
