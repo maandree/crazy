@@ -16,9 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "common.h"
-#include <stddef.h>
 #include <alloca.h>
-#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <inttypes.h>
