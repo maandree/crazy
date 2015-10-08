@@ -167,7 +167,7 @@ int main(int argc, char* argv[])
   
   
   args_init((char*)"Split a directory of images in a pattern",
-	    (char*)"crazy-cat [-s | -h | -m] [--] (<first> <gaps+1> <last> <output-dir>)...",
+	    (char*)"crazy-split [-s | -h | -m] [--] (<first> <gaps+1> <last> <output-dir>)...",
 	    NULL, NULL, 1, 0, args_standard_abbreviations);
   
   
