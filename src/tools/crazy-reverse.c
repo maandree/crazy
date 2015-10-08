@@ -30,12 +30,12 @@
 /**
  * Buffer for pathnames
  */
-static char buffer1[sizeof(".pnm.temp") / sizeof(char) + 3 * sizeof(size_t)];
+static char buffer1[sizeof(".temp.pnm") / sizeof(char) + 3 * sizeof(size_t)];
 
 /**
  * Buffer for pathnames
  */
-static char buffer2[sizeof(".pnm.temp") / sizeof(char) + 3 * sizeof(size_t)];
+static char buffer2[sizeof(".temp.pnm") / sizeof(char) + 3 * sizeof(size_t)];
 
 
 
@@ -51,7 +51,7 @@ static int perform_reverse(void)
   for (n = 1;; n++)
     {
       sprintf(buffer1, "%zu.pnm", n);
-      sprintf(buffer2, "%zu.pnm.temp", n);
+      sprintf(buffer2, "%zu.temp.pnm", n);
       if (access(buffer1, F_OK))
 	break;
       if (movefile(buffer1, buffer2))
@@ -60,7 +60,7 @@ static int perform_reverse(void)
   
   for (i = 1; i < n; i++)
     {
-      sprintf(buffer1, "%zu.pnm.temp", i);
+      sprintf(buffer1, "%zu.temp.pnm", i);
       sprintf(buffer2, "%zu.pnm", n - i);
       if (movefile(buffer1, buffer2))
 	goto fail;
