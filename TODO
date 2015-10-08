@@ -78,7 +78,7 @@ crazy-join
     6.pnm <- 9.pnm
     7.pnm <- 12.pnm
 
-crazy-rev
+crazy-reverse
   "Reverse the order of files"
   Assume file tree:
     1.pnm
@@ -87,7 +87,7 @@ crazy-rev
     4.pnm
     5.pnm
   Assume command:
-    crazy-rev
+    crazy-reverse
   Creates ('a <- b' denotes named renaming of b to a):
     1.pnm <- 5.pnm
     2.pnm <- 4.pnm
