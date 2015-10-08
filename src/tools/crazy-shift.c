@@ -30,12 +30,12 @@
 /**
  * Buffer for pathnames
  */
-static char buffer1[sizeof(".pnm") + 3 * sizeof(size_t) * sizeof(char)];
+static char buffer1[sizeof(".pnm") / sizeof(char) + 3 * sizeof(size_t)];
 
 /**
  * Buffer for pathnames
  */
-static char buffer2[sizeof(".pnm") + 3 * sizeof(size_t) * sizeof(char)];
+static char buffer2[sizeof(".pnm") / sizeof(char) + 3 * sizeof(size_t)];
 
 
 
