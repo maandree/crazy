@@ -36,28 +36,6 @@ crazy-rotate [--] <first> <gaps+1> [<last>]
     crazy-rotate 1 2 11
   Rotates 1.pnm, 3.pnm, 5.pnm, 7.pnm, 9.pnm, and 11.pnm 180°
 
-crazy-split [-s | -h | -m] [--] (<first> <gaps+1> <last> <output-dir>)...
-  "Split a directory of images in a pattern"
-  -s --symlink
-  -h --hardlink --link
-  -m --move
-  "Split a directory of images"
-  Assume file tree:
-    {1..10}.pnm
-  Assume command:
-    crazy-split  1 1 3 a  4 2 10 b  5 2 10 c
-  Creates:
-    a/1.pnm -> 1.pnm
-    a/2.pnm -> 2.pnm
-    a/3.pnm -> 3.pnm
-    b/1.pnm -> 4.pnm
-    b/2.pnm -> 6.pnm
-    b/3.pnm -> 8.pnm
-    b/4.pnm -> 10.pnm
-    c/1.pnm -> 5.pnm
-    c/2.pnm -> 7.pnm
-    c/3.pnm -> 9.pnm
-
 crazy-compile
   "Create a multipage-document from a directory of images"
   Calls: gm convert -adjoin *.pnm pdf:-
