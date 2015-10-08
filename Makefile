@@ -46,18 +46,30 @@ STD = gnu99
 LINK = -largparser
 
 
+# Tools
+TOOLS = cat compile join merge reverse rotate shift split
+
+
 # Build rules
 
 .PHONY: all
-all: bin/crazy
+all: bin/crazy $(foreach T,$(TOOLS),bin/crazy-$(T))
 
+
+bin/crazy-%: obj/tools/crazy-%.o obj/tools/common.o
+	@mkdir -p bin
+	$(CC) $(WARN) $(OPTIMISE) $(LINK) $(LDFLAGS) -o $@ $^
+
+obj/tools/%.o: src/tools/%.c src/tools/common.h
+	@mkdir -p $(shell dirname $@)
+	$(CC) -std=$(STD) $(WARN) $(OPTIMISE) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 bin/crazy: obj/crazy.o obj/display_fb.o obj/images.o
 	@mkdir -p bin
 	$(CC) $(WARN) $(OPTIMISE) $(LINK) $(LDFLAGS) -o $@ $^
 
 obj/%.o: src/%.c src/*.h
-	@mkdir -p obj
+	@mkdir -p $(shell dirname $@)
 	$(CC) -std=$(STD) $(WARN) $(OPTIMISE) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 

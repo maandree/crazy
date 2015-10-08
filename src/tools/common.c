@@ -15,8 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef CRAZY_TOOLS_COMMON_H
-#define CRAZY_TOOLS_COMMON_H
+#include "common.h"
 
 
 
@@ -27,7 +26,10 @@
  * @param   dest  The new file
  * @return        Zero on success, -1 on error
  */
-int copyfile(const char* src, const char* dest);
+int copyfile(const char* src, const char* dest)
+{
+}
+
 
 /**
  * Link a file, symbolically
@@ -36,7 +38,10 @@ int copyfile(const char* src, const char* dest);
  * @param   dest  The new file
  * @return        Zero on success, -1 on error
  */
-int symlfile(const char* src, const char* dest);
+int symlfile(const char* src, const char* dest)
+{
+}
+
 
 /**
  * Link a file
@@ -45,7 +50,10 @@ int symlfile(const char* src, const char* dest);
  * @param   dest  The new file
  * @return        Zero on success, -1 on error
  */
-int linkfile(const char* src, const char* dest);
+int linkfile(const char* src, const char* dest)
+{
+}
+
 
 /**
  * Move a file
@@ -54,7 +62,10 @@ int linkfile(const char* src, const char* dest);
  * @param   dest  The new file
  * @return        Zero on success, -1 on error
  */
-int movefile(const char* src, const char* dest);
+int movefile(const char* src, const char* dest)
+{
+}
+
 
 /**
  * Create directory recursively,
@@ -64,9 +75,7 @@ int movefile(const char* src, const char* dest);
  * @param   dest  The new file
  * @return        Zero on success, -1 on error
  */
-int mkdirs(const char* dir);
-
-
-
-#endif
+int mkdirs(const char* dir)
+{
+}
 
