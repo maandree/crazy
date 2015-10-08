@@ -1,62 +1,6 @@
 add tab-completion
 
 
-crazy-merge [-s | -h | -m] [--] <input-dir>... <output-dir>
-  "Zigzag-merge directories"
-  -s --symlink
-  -h --hardlink --link
-  -m --move
-  Assume file tree:
-    a/1.pnm
-    a/2.pnm
-    a/3.pnm
-    b/1.pnm
-    b/2.pnm
-    b/3.pnm
-    c/1.pnm
-    c/2.pnm
-    c/3.pnm
-  Assume command:
-    crazy-merge a b c x
-  Creates (only symlinked if run with -s, hardlinked if compiled with -h):
-    x/1.pnm -> a/1.pnm
-    x/2.pnm -> b/1.pnm
-    x/3.pnm -> c/1.pnm
-    x/4.pnm -> a/2.pnm
-    x/5.pnm -> b/2.pnm
-    x/6.pnm -> c/2.pnm
-    x/7.pnm -> a/3.pnm
-    x/8.pnm -> b/3.pnm
-    x/9.pnm -> c/3.pnm
-
-crazy-cat [-s | -h | -m] [--] <input-dir>... <output-dir>
-  "Concatenate-merge directories"
-  -s --symlink
-  -h --hardlink --link
-  -m --move
-  Assume file tree:
-    a/1.pnm
-    a/2.pnm
-    a/3.pnm
-    b/1.pnm
-    b/2.pnm
-    b/3.pnm
-    c/1.pnm
-    c/2.pnm
-    c/3.pnm
-  Assume command:
-    crazy-cat a b c x
-  Creates (only symlinked if run with -s, hardlinked if compiled with -h):
-    x/1.pnm -> a/1.pnm
-    x/2.pnm -> a/2.pnm
-    x/3.pnm -> a/3.pnm
-    x/4.pnm -> b/1.pnm
-    x/5.pnm -> b/2.pnm
-    x/6.pnm -> b/3.pnm
-    x/7.pnm -> c/1.pnm
-    x/8.pnm -> c/2.pnm
-    x/9.pnm -> c/3.pnm
-
 crazy-join
   "Remove gaps from removed files"
   Assume file tree:
@@ -77,23 +21,6 @@ crazy-join
     5.pnm <- 6.pnm
     6.pnm <- 9.pnm
     7.pnm <- 12.pnm
-
-crazy-reverse
-  "Reverse the order of files"
-  Assume file tree:
-    1.pnm
-    2.pnm
-    3.pnm
-    4.pnm
-    5.pnm
-  Assume command:
-    crazy-reverse
-  Creates ('a <- b' denotes named renaming of b to a):
-    1.pnm <- 5.pnm
-    2.pnm <- 4.pnm
-    3.pnm <- 3.pnm
-    4.pnm <- 2.pnm
-    5.pnm <- 1.pnm
 
 crazy-rotate [--] <first> <gaps+1> [<last>]
   "Rotate images in a pattern"
@@ -130,24 +57,6 @@ crazy-split [-s | -h | -m] [--] (<first> <gaps+1> <last> <output-dir>)...
     c/1.pnm -> 5.pnm
     c/2.pnm -> 7.pnm
     c/3.pnm -> 9.pnm
-
-crazy-shift [--] <first> <shift>
-  "Create a gap between images"
-  Assume file tree:
-    {1..10}.pnm
-  Assume command:
-    crazy-shift 5 2
-  Creates:
-    1.pnm -> 1.pnm
-    2.pnm -> 2.pnm
-    3.pnm -> 3.pnm
-    4.pnm -> 4.pnm
-    5.pnm -> 7.pnm
-    6.pnm -> 8.pnm
-    7.pnm -> 9.pnm
-    8.pnm -> 10.pnm
-    9.pnm -> 11.pnm
-    10.pnm -> 12.pnm
 
 crazy-compile
   "Create a multipage-document from a directory of images"
