@@ -22,17 +22,3 @@ crazy-join
     6.pnm <- 9.pnm
     7.pnm <- 12.pnm
 
-crazy-rotate [--] <first> <gaps+1> [<last>]
-  "Rotate images in a pattern"
-  Assume file tree:
-    {1..20}.pnm
-  Assume command:
-    crazy-rotate 1 1
-  Rotates all images 180°
-  Assume command:
-    crazy-rotate 1 2
-  Rotates all images with odd number 180°
-  Assume command:
-    crazy-rotate 1 2 11
-  Rotates 1.pnm, 3.pnm, 5.pnm, 7.pnm, 9.pnm, and 11.pnm 180°
-

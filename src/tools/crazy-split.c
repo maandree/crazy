@@ -75,7 +75,7 @@ struct split
   size_t diff;
   
   /**
-   * The image after the last image;
+   * The image after the last image
    */
   size_t end;
   
