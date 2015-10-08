@@ -20,6 +20,8 @@
 #include <alloca.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
+#include <inttypes.h>
 
 #include <argparser.h>
 
@@ -196,15 +198,15 @@ int main(int argc, char* argv[])
   if (args_unrecognised_count || (args_files_count & 3) || !args_files_count)
     goto invalid_opts;
   
-  f_symlink  = args_opts_used((char*)"--symlink");
-  f_hardlink = args_opts_used((char*)"--hardlink");
-  f_move     = args_opts_used((char*)"--move");
+  f_symlink  = !!args_opts_used((char*)"--symlink");
+  f_hardlink = !!args_opts_used((char*)"--hardlink");
+  f_move     = !!args_opts_used((char*)"--move");
   if (f_symlink + f_hardlink + f_move > 1)
     goto invalid_opts;
   
   
-  splits = alloca((args_files_count >> 2) * sizeof(struct split));
-  for (i = 0; i < args_files_count; i += 4)
+  splits = alloca(((size_t)args_files_count >> 2) * sizeof(struct split));
+  for (i = 0; i < (size_t)args_files_count; i += 4)
     {
       splits[i].first = parse_size(args_files[i | 0]);
       splits[i].diff  = parse_size(args_files[i | 1]);
@@ -212,7 +214,7 @@ int main(int argc, char* argv[])
       splits[i].dir   = args_files[i | 3];
       
       if ((splits[i].first == 0) || (splits[i].diff == 0))  goto invalid_opts;
-      if ((splits[i].last  == 0) || (splits[i].dir  == 0))  goto invalid_opts;
+      if ((splits[i].end   == 0) || (splits[i].dir  == 0))  goto invalid_opts;
       if (splits[i].end++ == SIZE_MAX)
 	{
 	  errno = ERANGE;
@@ -231,7 +233,7 @@ int main(int argc, char* argv[])
   if (f_symlink)   mode = MODE_SYMLINK;
   if (f_hardlink)  mode = MODE_LINK;
   if (f_move)      mode = MODE_MOVE;
-  if (perform_split(splits, args_files_count >> 2, mode))
+  if (perform_split(splits, (size_t)args_files_count >> 2, mode))
     goto fail;
   
   

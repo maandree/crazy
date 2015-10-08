@@ -21,6 +21,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
+#include <inttypes.h>
+#include <string.h>
+#include <sys/wait.h>
 
 #include <argparser.h>
 
@@ -38,6 +41,13 @@ static char buffer2[sizeof(".temp.pnm") / sizeof(char) + 3 * sizeof(size_t)];
 
 
 
+
+#ifdef __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Waggregate-return"
+# pragma GCC diagnostic ignored "-Wcast-qual"
+#endif
+
 /**
  * Perform rotation
  * 
@@ -48,12 +58,13 @@ static char buffer2[sizeof(".temp.pnm") / sizeof(char) + 3 * sizeof(size_t)];
  */
 static int perform_rotate(size_t first, size_t diff, size_t end)
 {
-  char* command = { "gm", "convert", buffer1, "-flip", "-flop", buffer2, NULL };
+  char* command[] = { (char*)"gm", (char*)"convert", buffer1,
+		      (char*)"-flip", (char*)"-flop", buffer2, NULL };
   size_t i;
   pid_t pid;
   int status;
   
-  while (i = first; i < end; i += diff)
+  for (i = first; i < end; i += diff)
     {
       sprintf(buffer1, "%zu.pnm", i);
       sprintf(buffer2, "%zu.temp.pnm", i);
@@ -115,12 +126,6 @@ static size_t parse_size(const char* str)
  */
 int main(int argc, char* argv[])
 {
-#ifdef __GNUC__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Waggregate-return"
-# pragma GCC diagnostic ignored "-Wcast-qual"
-#endif
-  
   int rc = 0;
   size_t first, diff, end;
   
@@ -153,7 +158,7 @@ int main(int argc, char* argv[])
   
   if (!first || !diff || !end)
     goto invalid_opts;
-  if (splits[i].end++ == SIZE_MAX)
+  if (end++ == SIZE_MAX)
     {
       errno = ERANGE;
       goto fail;
@@ -173,9 +178,9 @@ int main(int argc, char* argv[])
     perror(*argv);
   rc = 1;
   goto exit;
-  
+}
+
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
 #endif
-}
 

@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <argparser.h>
 
@@ -52,8 +53,9 @@ static int perform_compile(void)
   size_t i, n, len = 0;
   char** command;
   char* buf;
+  char* arg;
   ssize_t arglen;
-  int saved_errno
+  int saved_errno;
   
   for (n = 1;; n++)
     {
@@ -66,16 +68,16 @@ static int perform_compile(void)
   command = malloc((4 + n) * sizeof(char*));
   arg = buf = malloc(len * sizeof(char));
   
-  command[0] = "gm";
-  command[1] = "convert";
-  command[2] = "-adjoin";
+  command[0] = (char*)"gm";
+  command[1] = (char*)"convert";
+  command[2] = (char*)"-adjoin";
   for (i = 1; i < n; i++)
     {
       command[i + 2] = arg;
       sprintf(arg, "%zu.pnm%zn", i, &arglen);
       arg += (size_t)arglen + 1;
     }
-  command[n + 2] = "pdf:-";
+  command[n + 2] = (char*)"pdf:-";
   command[n + 3] = NULL;
   
   execvp(*command, command);

@@ -156,14 +156,14 @@ int main(int argc, char* argv[])
   if (args_unrecognised_count || (args_files_count < 3))
     goto invalid_opts;
   
-  f_symlink  = args_opts_used((char*)"--symlink");
-  f_hardlink = args_opts_used((char*)"--hardlink");
-  f_move     = args_opts_used((char*)"--move");
+  f_symlink  = !!args_opts_used((char*)"--symlink");
+  f_hardlink = !!args_opts_used((char*)"--hardlink");
+  f_move     = !!args_opts_used((char*)"--move");
   if (f_symlink + f_hardlink + f_move > 1)
     goto invalid_opts;
   
   
-  for (i = 0; i < args_files_count; i++)
+  for (i = 0; i < (size_t)args_files_count; i++)
     n = strlen(args_files[i]), maxlen = maxlen < n ? n : maxlen;
   n = sizeof("/.pnm") + (3 * sizeof(size_t) + n) * sizeof(char);
   buffer1 = alloca(n);
@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
   if (f_symlink)   mode = MODE_SYMLINK;
   if (f_hardlink)  mode = MODE_LINK;
   if (f_move)      mode = MODE_MOVE;
-  if (perform_merge(args_files, args_files_count - 1, args_files[args_files_count - 1], mode))
+  if (perform_merge(args_files, (size_t)args_files_count - 1, args_files[args_files_count - 1], mode))
     goto fail;
   
   
