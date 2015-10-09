@@ -16,6 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "common.h"
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 
 
 
@@ -28,6 +34,37 @@
  */
 int copyfile(const char* src, const char* dest)
 {
+  int fsrc = -1;
+  int fdest = -1;
+  int saved_errno;
+  ssize_t sent;
+  struct stat attr;
+  
+  if (fsrc = open(src, O_RDONLY), fsrc < 0)
+    goto fail;
+  if (fstat(fsrc, &attr))
+    goto fail;
+  
+  if (fdest = open(dest, O_WRONLY | O_CREAT | O_EXCL, attr.st_mode & 07777), fdest < 0)
+    goto fail;
+  
+  do
+    {
+      sent = sendfile(fdest, fsrc, NULL, 0x7ffff000UL);
+      if ((sent < 0) && (errno != EINTR))
+	goto fail;
+    }
+  while (sent);
+  
+  while (close(fsrc)  && (errno == EINTR));
+  while (close(fdest) && (errno == EINTR));
+  return 0;
+ fail:
+  saved_errno = errno;
+  if (fsrc  >= 0)  while (close(fsrc)  && (errno == EINTR));
+  if (fdest >= 0)  while (close(fdest) && (errno == EINTR));
+  errno = saved_errno;
+  return -1;
 }
 
 
@@ -52,6 +89,7 @@ int symlfile(const char* src, const char* dest)
  */
 int linkfile(const char* src, const char* dest)
 {
+  return link(src, dest);
 }
 
 
@@ -64,6 +102,10 @@ int linkfile(const char* src, const char* dest)
  */
 int movefile(const char* src, const char* dest)
 {
+  if (!rename(src, dest))   return 0;
+  if (errno != EXDEV)       return -1;
+  if (copyfile(src, dest))  return -1;
+  return unlink(src);
 }
 
 

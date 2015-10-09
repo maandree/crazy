@@ -6,7 +6,7 @@ RUNTIME DEPENDENCIES:
 	coreutils
 	sh
 	graphicsmagick
-	linux
+	linux>=2.6.33
 
 
 BUILD DEPENDENCIES:
