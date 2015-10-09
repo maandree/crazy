@@ -33,4 +33,11 @@ Features:
 	Option to rotate every other page 180° (pending)
 	Easy to insert, remove and replace scanned images (pending)
 	Page splitting (pending)
+	Images are scanned to directories, (pending) this allows you
+	  to easily reorder images, remove images, and modify images
+	  using any utilise you like from the command line, but crazy
+	  comes with a collection of tools especially developed to
+	  make it easy to scan books with crazy. You may also save
+	  directly to a document, which is useful if you are only
+	  scanning a few papers.
 
