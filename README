@@ -1,4 +1,12 @@
-A crazy simple and usable scanning utility
+A crazy simple and usable scanning utility.
+
+crazy is suitable scanning anything, it is
+however designed particularly for scanning
+books, since scanning all of my books with
+simple-scan takes too much work. crazy is
+develop for me to save time, but it also
+aims to solve the problem that there are
+no good SANE front-ends anymore.
 
 Features:
 
