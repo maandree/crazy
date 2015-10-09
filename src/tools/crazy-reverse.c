@@ -89,7 +89,7 @@ int main(int argc, char* argv[])
 	    NULL, NULL, 1, 0, args_standard_abbreviations);
   
   
-  args_add_option(args_new_argumentless(NULL, 1, (char*)"--help", NULL),
+  args_add_option(args_new_argumentless(NULL, 0, (char*)"--help", NULL),
 		  (char*)"Prints this help message");
   
   
