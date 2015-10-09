@@ -103,7 +103,7 @@ static int perform_split(struct split* splits, size_t count, int mode)
   while (count--)
     {
       s = splits[count];
-      out = 0;
+      out = 1;
       for (in = s.first; in < s.end; in += s.diff)
 	{
 	  sprintf(buffer1, "%zu.pnm", in);
@@ -162,7 +162,7 @@ int main(int argc, char* argv[])
   
   int rc = 0, mode = MODE_COPY;
   int f_symlink = 0, f_hardlink = 0, f_move = 0;
-  size_t maxlen = 0, i, n;
+  size_t maxlen = 0, i, j, n;
   struct split* splits;
   
   
@@ -204,16 +204,16 @@ int main(int argc, char* argv[])
   
   
   splits = alloca(((size_t)args_files_count >> 2) * sizeof(struct split));
-  for (i = 0; i < (size_t)args_files_count; i += 4)
+  for (i = j = 0; i < (size_t)args_files_count; i += 4, j++)
     {
-      splits[i].first = parse_size(args_files[i | 0]);
-      splits[i].diff  = parse_size(args_files[i | 1]);
-      splits[i].end   = parse_size(args_files[i | 2]);
-      splits[i].dir   = args_files[i | 3];
+      splits[j].first = parse_size(args_files[i | 0]);
+      splits[j].diff  = parse_size(args_files[i | 1]);
+      splits[j].end   = parse_size(args_files[i | 2]);
+      splits[j].dir   = args_files[i | 3];
       
-      if ((splits[i].first == 0) || (splits[i].diff == 0))  goto invalid_opts;
-      if ((splits[i].end   == 0) || (splits[i].dir  == 0))  goto invalid_opts;
-      if (splits[i].end++ == SIZE_MAX)
+      if ((splits[j].first == 0) || (splits[j].diff == 0))     goto invalid_opts;
+      if ((splits[j].end   == 0) || (splits[j].dir  == NULL))  goto invalid_opts;
+      if (splits[j].end++ == SIZE_MAX)
 	{
 	  errno = ERANGE;
 	  goto fail;
