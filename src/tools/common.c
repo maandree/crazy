@@ -51,7 +51,7 @@ static char* abspath(const char* file, const char* ref)
   /* Create absolute path, with //, /./, and /../. */
   if (*file != '/')
     {
-      rc_ = strcpy(rc_, ref);
+      rc_ = stpcpy(rc_, ref);
       *rc_++ = '/';
     }
   strcpy(rc_, file);
@@ -119,6 +119,7 @@ static char* relpath(const char* file, const char* ref)
     ptr++;
   while (absfile[ptr] != '/')
     ptr--;
+  ptr++;
   
   for (p = ptr; absref[p]; p++)
     if (absref[p] == '/')
