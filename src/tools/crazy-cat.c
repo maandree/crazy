@@ -71,7 +71,7 @@ static int perform_cat(char** input_dirs, size_t input_dirs_n, char* output_dir,
   size_t in, out = 1, dir;
   
   for (dir = 0; dir < input_dirs_n; dir++)
-    for (in = 0;; in++)
+    for (in = 1;; in++)
       {
 	sprintf(buffer1, "%s/%zu.pnm", input_dirs[dir], in);
 	if (access(buffer1, F_OK))
