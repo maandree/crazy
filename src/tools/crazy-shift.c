@@ -18,6 +18,7 @@
 #include "common.h"
 #include <string.h>
 #include <inttypes.h>
+#include <errno.h>
 
 #include <argparser.h>
 
@@ -129,7 +130,8 @@ int main(int argc, char* argv[])
  invalid_opts:
   args_help();
  fail:
-  perror(*argv);
+  if (errno)
+    perror(*argv);
   rc = 1;
   goto exit;
   

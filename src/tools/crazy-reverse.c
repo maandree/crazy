@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "common.h"
+#include <errno.h>
 
 #include <argparser.h>
 
@@ -116,7 +117,8 @@ int main(int argc, char* argv[])
  invalid_opts:
   args_help();
  fail:
-  perror(*argv);
+  if (errno)
+    perror(*argv);
   rc = 1;
   goto exit;
   
