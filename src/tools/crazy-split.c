@@ -223,9 +223,9 @@ int main(int argc, char* argv[])
       if (mkdirs(args_files[i | 3]))
 	goto fail;
     }
-  n = sizeof("/.pnm") + (3 * sizeof(size_t) + n) * sizeof(char);
-  buffer1 = alloca(n);
-  buffer2 = alloca(n);
+  maxlen = sizeof("/.pnm") + (3 * sizeof(size_t) + maxlen) * sizeof(char);
+  buffer1 = alloca(maxlen);
+  buffer2 = alloca(maxlen);
   
   
   if (f_symlink)   mode = MODE_SYMLINK;

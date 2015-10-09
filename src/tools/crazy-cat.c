@@ -154,9 +154,9 @@ int main(int argc, char* argv[])
   
   for (i = 0; i < (size_t)args_files_count; i++)
     n = strlen(args_files[i]), maxlen = maxlen < n ? n : maxlen;
-  n = sizeof("/.pnm") + (3 * sizeof(size_t) + n) * sizeof(char);
-  buffer1 = alloca(n);
-  buffer2 = alloca(n);
+  maxlen = sizeof("/.pnm") + (3 * sizeof(size_t) + maxlen) * sizeof(char);
+  buffer1 = alloca(maxlen);
+  buffer2 = alloca(maxlen);
   
   
   if (mkdirs(args_files[args_files_count - 1]))
