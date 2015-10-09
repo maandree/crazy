@@ -16,10 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "common.h"
+#include <alloca.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 
@@ -119,5 +121,34 @@ int movefile(const char* src, const char* dest)
  */
 int mkdirs(const char* dir)
 {
+  char* p;
+  char* q;
+  char* dir_edited;
+  
+  p = alloca((strlen(dir) + 1) * sizeof(char));
+  strcpy(p, dir);
+  dir_edited = p;
+  
+ next:
+  while (*p == '/')
+    p++;
+  
+  q = strchr(p, '/');
+  if (*q == '/')
+    {
+      *q = '\0';
+      if (access(dir, F_OK) && mkdir(dir_edited, 0755))
+	goto fail;
+      *q = '/';
+      p = q + 1;
+      goto next;
+    }
+  else if (*p)
+    if (access(dir, F_OK) && mkdir(dir_edited, 0755))
+      goto fail;
+  
+  return 0;
+ fail:
+  return -1;
 }
 
