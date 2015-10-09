@@ -272,17 +272,17 @@ int mkdirs(const char* dir)
     p++;
   
   q = strchr(p, '/');
-  if (*q == '/')
+  if (q != NULL)
     {
       *q = '\0';
-      if (access(dir, F_OK) && mkdir(dir_edited, 0755))
+      if (access(dir_edited, F_OK) && mkdir(dir_edited, 0755))
 	goto fail;
       *q = '/';
       p = q + 1;
       goto next;
     }
   else if (*p)
-    if (access(dir, F_OK) && mkdir(dir_edited, 0755))
+    if (access(dir_edited, F_OK) && mkdir(dir_edited, 0755))
       goto fail;
   
   return 0;
