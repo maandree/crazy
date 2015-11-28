@@ -1,43 +1,57 @@
-A crazy simple and usable scanning utility.
+NAME
+	crazy - A crazy simple and usable scanning utility
 
-crazy is suitable scanning anything, it is
-however designed particularly for scanning
-books, since scanning all of my books with
-simple-scan takes too much work. crazy is
-develop for me to save time, but it also
-aims to solve the problem that there are
-no good SANE front-ends anymore.
+DESCRIPTION
+	crazy mails to be suitable for scanning large amount of pages,
+	including books. crazy also aims to be as simple as possible and
+	support running both inside and outside X.
 
-Features:
+	crazy is front-end of SANE, and the package includes a set of
+	tools to process scanned images, which is required when scanning
+	hundreds of pages.
 
-	Terminal-based
-	SANE-based
-	Using programs rather than libraries for maintainability
-	Framebuffer support (pending)
-	X support (pending)
-	No GTK3+ support
-	No colord support
-	No unneccessary features, scanned imaged can be piped through a program
-		No colour profile support
-		No gamma support
-		No brightness support
-		No contrast support
-		No OCR support
-		No image quality support
-		No colour manipulation support
-		No page reordering support
-		No fax support
-		No e-mail support
-		No printer support (document copying)
-	Hotkey support (pending)
-	Option to rotate every other page 180° (pending)
-	Easy to insert, remove and replace scanned images (pending)
-	Page splitting (pending)
-	Images are scanned to directories, (pending) this allows you
-	  to easily reorder images, remove images, and modify images
-	  using any utilise you like from the command line, but crazy
-	  comes with a collection of tools especially developed to
-	  make it easy to scan books with crazy. You may also save
-	  directly to a document, which is useful if you are only
-	  scanning a few papers.
+FEATURES
+	*	Terminal-based
+	*	SANE-based
+	*	Using programs rather than libraries for maintainability
+	*	Framebuffer support (pending)
+	*	X support (pending)
+	*	No GTK3+ support
+	*	No colord support
+	*	No unneccessary features; scanned images can be piped
+		through a program
+		o	No colour profile support
+		o	No gamma support
+		o	No brightness support
+		o	No contrast support
+		o	No OCR support
+		o	No image quality support
+		o	No colour manipulation support
+		o	No page reordering support
+		o	No fax support
+		o	No e-mail support
+		o	No printer support (document copying)
+	*	Hotkey support (pending)
+	*	Option to rotate every other page 180° (pending)
+	*	Easy to insert, remove and replace scanned images (pending)
+	*	Page splitting (pending)
+	*	Images are scanned to directories, (pending) this allows
+		you to easily reorder images, remove images, and modify
+		images using any utilise you like from the command line,
+		but crazy comes with a collection of tools especially
+		developed to make make it easy to scan books with crazy.
+		You may also save directly to a document, which is useful
+		if you are only scanning a few papers.
+
+RATIONALE
+	crazy is suitable scanning anything, it is however designed
+	particularly for scanning books, since scanning all of my books
+	with simple-scan takes too much work. crazy is develop for me to
+	save time, but it also aims to solve the problem that there are
+	no good SANE front-ends anymore.
+
+SEE ALSO
+	scanimage(1), sane(7), sane-find-scanner(1), sane(8), cuneiform(1),
+	gocr(1), tesseract(1), ImageMagick(1), gm(1), cups(1), fax4cup(1),
+	hylafax(1), efax(1), mail(1), sendmail(8)
 
