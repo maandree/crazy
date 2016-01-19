@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
   
   
   for (i = 0; i < (size_t)args_files_count; i++)
-    n = strlen(args_files[i]), maxlen = maxlen < n ? n : maxlen;
+    n = strlen(args_files[i]), maxlen = (maxlen < n ? n : maxlen);
   maxlen = sizeof("/.pnm") + (3 * sizeof(size_t) + maxlen) * sizeof(char);
   buffer1 = alloca(maxlen);
   buffer2 = alloca(maxlen);
