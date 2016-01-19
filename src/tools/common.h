@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@
 #ifndef CRAZY_TOOLS_COMMON_H
 #define CRAZY_TOOLS_COMMON_H
 
+
+
+/**
+ * Go to the label `fail` unless the given expression
+ * evaluates to zero.
+ * 
+ * @param  ...  The expression, may have side-effects.
+ */
+#define t(...)  do { if (__VA_ARGS__) goto fail; } while (0)
 
 
 /**

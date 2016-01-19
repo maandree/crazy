@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "crazy.h"
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,12 +155,10 @@ static char** get_devices(ssize_t* restrict count)
   /* Allocate device list. */
   *count = 0;
   rc = malloc(sizeof(char*));
-  if (rc == NULL)
-      goto fail;
+  t (rc == NULL);
   ptr = 0, allocated = 32;
   rc[0] = malloc(allocated * sizeof(char));
-  if (rc[0] == NULL)
-    goto fail;
+  t (rc[0] == NULL);
   state = 0;
   
   /* Retrieve device list. */
@@ -168,10 +168,11 @@ static char** get_devices(ssize_t* restrict count)
       got = read(pipe_rw[0], buf, sizeof(buf) / sizeof(*buf));
       if (got == 0)
 	break;
-      else if ((got < 0) && (errno == EINTR))
-	continue;
-      else if (got < 0)
-	goto fail;
+      if (got < 0)
+	{
+	  t (errno != EINTR);
+	  continue;
+	}
       /* Parse. */
       for (i = 0; i < got; i++)
 	{
@@ -201,8 +202,7 @@ static char** get_devices(ssize_t* restrict count)
 		}
 	      ptr = 0, allocated = 32;
 	      rc[*count] = malloc(allocated * sizeof(char));
-	      if (rc[*count] == NULL)
-		goto fail;
+	      t (rc[*count] == NULL);
 	    }
 	  else if (state == 2)
 	    {
@@ -226,16 +226,13 @@ static char** get_devices(ssize_t* restrict count)
   for (;;)
     {
       reaped = wait(&status);
-      if (reaped < 0)
-	goto fail;
-      else if (reaped == pid)
+      t (reaped < 0);
+      if (reaped == pid)
 	{
-	  if (status)
-	    {
-	      errno = 0;
-	      goto fail;
-	    }
-	  break;
+	  if (!status)
+	    break;
+	  errno = 0;
+	  goto fail;
 	}
     }
   
@@ -343,20 +340,17 @@ static int scan_image(char** image)
 	   device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "", &n);
   
   sh = malloc((size_t)n * sizeof(char*));
-  if (sh == NULL)
-    goto fail;
+  t (sh == NULL);
   
   sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s",
 	  device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "");
   
   /* Set up communication channel. */
-  if (pipe(pipe_rw) < 0)
-    goto fail;
+  t (pipe(pipe_rw) < 0);
   
   /* Start scanner process. */
   pid = fork();
-  if (pid < 0)
-    goto fail;
+  t (pid < 0);
   
   if (pid == 0)
     {
@@ -644,8 +638,7 @@ int main(int argc, char* argv[])
   
   
   /* Start display system. */
-  if (display.initialise())
-    goto fail;
+  t (display.initialise());
   display_initialised = 1;
   
   

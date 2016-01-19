@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,10 +110,10 @@ static int perform_split(struct split* splits, size_t count, int mode)
 	  sprintf(buffer2, "%s/%zu.pnm", s.dir, out++);
 	  switch (mode)
 	    {
-	    case MODE_COPY:     if (copyfile(buffer1, buffer2)) goto fail;  break;
-	    case MODE_SYMLINK:  if (symlfile(buffer1, buffer2)) goto fail;  break;
-	    case MODE_LINK:     if (linkfile(buffer1, buffer2)) goto fail;  break;
-	    case MODE_MOVE:     if (movefile(buffer1, buffer2)) goto fail;  break;
+	    case MODE_COPY:     t (copyfile(buffer1, buffer2));
+	    case MODE_SYMLINK:  t (symlfile(buffer1, buffer2));
+	    case MODE_LINK:     t (linkfile(buffer1, buffer2));
+	    case MODE_MOVE:     t (movefile(buffer1, buffer2));
 	    default:
 	      return abort(), -1;
 	    }
@@ -214,14 +214,10 @@ int main(int argc, char* argv[])
       if ((splits[j].first == 0) || (splits[j].diff == 0))     goto invalid_opts;
       if ((splits[j].end   == 0) || (splits[j].dir  == NULL))  goto invalid_opts;
       if (splits[j].end++ == SIZE_MAX)
-	{
-	  errno = ERANGE;
-	  goto fail;
-	}
+	t ((errno = ERANGE));
       
       n = strlen(args_files[i | 3]), maxlen = maxlen < n ? n : maxlen;
-      if (mkdirs(args_files[i | 3]))
-	goto fail;
+      t (mkdirs(args_files[i | 3]));
     }
   maxlen = sizeof("/.pnm") + (3 * sizeof(size_t) + maxlen) * sizeof(char);
   buffer1 = alloca(maxlen);
@@ -231,8 +227,7 @@ int main(int argc, char* argv[])
   if (f_symlink)   mode = MODE_SYMLINK;
   if (f_hardlink)  mode = MODE_LINK;
   if (f_move)      mode = MODE_MOVE;
-  if (perform_split(splits, (size_t)args_files_count >> 2, mode))
-    goto fail;
+  t (perform_split(splits, (size_t)args_files_count >> 2, mode));
   
   
  exit:

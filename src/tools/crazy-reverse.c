@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,16 +49,14 @@ static int perform_reverse(void)
       sprintf(buffer2, "%zu.temp.pnm", n);
       if (access(buffer1, F_OK))
 	break;
-      if (movefile(buffer1, buffer2))
-	goto fail;
+      t (movefile(buffer1, buffer2));
     }
   
   for (i = 1; i < n; i++)
     {
       sprintf(buffer1, "%zu.temp.pnm", i);
       sprintf(buffer2, "%zu.pnm", n - i);
-      if (movefile(buffer1, buffer2))
-	goto fail;
+      t (movefile(buffer1, buffer2));
     }
   
   return 0;
@@ -107,8 +105,7 @@ int main(int argc, char* argv[])
     goto invalid_opts;
   
   
-  if (perform_reverse())
-    goto fail;
+  t (perform_reverse());
   
   
  exit:

@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -100,32 +100,25 @@ static int display_fb_initialise(void)
   
   /* Get file descriptor to framebuffer, must not be stdin/stdout/stderr. */
   fb_fd = open(FB_DEVICE, O_RDWR | O_CLOEXEC);
-  if (fb_fd < 0)
-    goto fail;
+  t (fb_fd < 0);
   while ((fb_fd == STDIN_FILENO) || (fb_fd == STDOUT_FILENO) || (fb_fd == STDERR_FILENO))
     {
       if (ptr == 256)
-	{
-	  errno = EMFILE;
-	  goto fail;
-	}
+	t ((errno = EMFILE));
       fds[ptr++] = fb_fd;
       fb_fd = dup(fb_fd);
-      if (fb_fd < 0)
-	goto fail;
+      t (fb_fd < 0);
     }
   while (ptr--)
     close(fds[ptr]);
   
   /* Acquire screen information. */
-  if (ioctl(fb_fd, (unsigned long int)FBIOGET_FSCREENINFO, &fix_info) ||
-      ioctl(fb_fd, (unsigned long int)FBIOGET_VSCREENINFO, &var_info))
-    goto fail;
+  t (ioctl(fb_fd, (unsigned long int)FBIOGET_FSCREENINFO, &fix_info) ||
+     ioctl(fb_fd, (unsigned long int)FBIOGET_VSCREENINFO, &var_info));
   
   /* Memory map the framebuffer. */
   fb_mem = mmap(NULL, (size_t)(fix_info.smem_len), PROT_WRITE, MAP_PRIVATE, fb_fd, (off_t)0);
-  if (fb_mem == MAP_FAILED)
-    goto fail;
+  t (fb_mem == MAP_FAILED);
   
   /* Skip offset in framebuffer. */
   fb_mem += var_info.xoffset * (var_info.bits_per_pixel / 8);
@@ -292,8 +285,7 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   /* Read image that is being scanned. */
   pnm_init_parse_header(&state, &comment, &type, &maxval, &width, &height);
   *image = malloc(size * sizeof(char));
-  if (*image == NULL)
-    goto fail;
+  t (*image == NULL);
   for (;;)
     {
       /* Read. */
@@ -310,10 +302,11 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
       got = read(fd, *image, size - ptr);
       if (got == 0)
 	break;
-      else if ((got < 0) && (errno == EINTR))
-	continue;
-      else if (got < 0)
-	goto fail;
+      if (got < 0)
+	{
+	  t (errno != EINTR);
+	  continue;
+	}
       
       /* Parse header and get display dimension. */
       offset = 0;
@@ -343,16 +336,13 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   for (;;)
     {
       reaped = wait(&status);
-      if (reaped < 0)
-	goto fail;
-      else if (reaped == pid)
+      t (reaped < 0);
+      if (reaped == pid)
 	{
-	  if (status)
-	    {
-	      errno = 0;
-	      goto fail;
-	    }
-	  break;
+	  if (!status)
+	    break;
+	  errno = 0;
+	  goto fail;
 	}
     }
   
@@ -385,9 +375,8 @@ static int display_fb_display(int fd, pid_t pid, char** restrict image, size_t* 
   /* Resize image to fit the screen. */
   resize_vertically = get_resize_dimensions(width, height, fb_width, fb_height,
 					    &display_width, &display_height);
-  if (resize_image(display_width, display_height, resize_vertically,
-		   *image, size + offset, &scaled_image, &ptr))
-    goto fail;
+  t (resize_image(display_width, display_height, resize_vertically,
+		  *image, size + offset, &scaled_image, &ptr));
   
   /* Parse headers of the resized image. */
   pnm_init_parse_header(&state, &comment, &type, &maxval, &display_width, &height);

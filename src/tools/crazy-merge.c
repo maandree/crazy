@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,10 +90,10 @@ static int perform_merge(char** input_dirs, size_t input_dirs_n, char* output_di
       sprintf(buffer2, "%s/%zu.pnm", output_dir, out++);
       switch (mode)
 	{
-	case MODE_COPY:     if (copyfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_SYMLINK:  if (symlfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_LINK:     if (linkfile(buffer1, buffer2)) goto fail;  break;
-	case MODE_MOVE:     if (movefile(buffer1, buffer2)) goto fail;  break;
+	case MODE_COPY:     t (copyfile(buffer1, buffer2));
+	case MODE_SYMLINK:  t (symlfile(buffer1, buffer2));
+	case MODE_LINK:     t (linkfile(buffer1, buffer2));
+	case MODE_MOVE:     t (movefile(buffer1, buffer2));
 	default:
 	  return abort(), -1;
 	}
@@ -169,14 +169,12 @@ int main(int argc, char* argv[])
   buffer2 = alloca(maxlen);
   
   
-  if (mkdirs(args_files[args_files_count - 1]))
-    goto fail;
+  t (mkdirs(args_files[args_files_count - 1]));
   
   if (f_symlink)   mode = MODE_SYMLINK;
   if (f_hardlink)  mode = MODE_LINK;
   if (f_move)      mode = MODE_MOVE;
-  if (perform_merge(args_files, (size_t)args_files_count - 1, args_files[args_files_count - 1], mode))
-    goto fail;
+  t (perform_merge(args_files, (size_t)args_files_count - 1, args_files[args_files_count - 1], mode));
   
   
  exit:

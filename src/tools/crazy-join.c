@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,8 +50,7 @@ static int perform_join(void)
   char* p;
   
   dir = opendir(".");
-  if (dir == NULL)
-    goto fail;
+  t (dir == NULL);
   
   while ((file = readdir(dir)) != NULL)
     {
@@ -60,10 +59,7 @@ static int perform_join(void)
 	continue;
       sprintf(buffer1, "%zu.pnm", in);
       if ((strcmp(buffer1, file->d_name)) || (in == SIZE_MAX))
-	{
-	  errno = ERANGE;
-	  goto fail;
-	}
+	t ((errno = ERANGE));
       n = n < in ? in : n;
     }
   
@@ -77,8 +73,7 @@ static int perform_join(void)
       if (in == out++)
 	continue;
       
-      if (movefile(buffer1, buffer2))
-	goto fail;
+      t (movefile(buffer1, buffer2));
     }
   
   closedir(dir);
@@ -130,8 +125,7 @@ int main(int argc, char* argv[])
     goto invalid_opts;
   
   
-  if (perform_join())
-    goto fail;
+  t (perform_join());
   
   
  exit:

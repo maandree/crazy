@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,8 +68,7 @@ static int perform_rotate(size_t first, size_t diff, size_t end)
 	break;
       
       pid = fork();
-      if (pid < 0)
-	goto fail;
+      t (pid < 0);
       
       if (pid == 0)
 	execvp(*command, command), perror(*command), exit(1);
@@ -77,15 +76,13 @@ static int perform_rotate(size_t first, size_t diff, size_t end)
     rewait:
       if (waitpid(pid, &status, 0) < 0)
 	{
-	  if (errno == EINTR)
-	    goto rewait;
-	  goto fail;
+	  t (errno != EINTR);
+	  goto rewait;
 	}
       if (status)
 	return errno = 0, -1;
       
-      if (unlink(buffer1) || movefile(buffer2, buffer1))
-	goto fail;
+      t (unlink(buffer1) || movefile(buffer2, buffer1));
     }
   
   return 0;
@@ -155,13 +152,9 @@ int main(int argc, char* argv[])
   if (!first || !diff || !end)
     goto invalid_opts;
   if (end++ == SIZE_MAX)
-    {
-      errno = ERANGE;
-      goto fail;
-    }
+    t ((errno = ERANGE));
   
-  if (perform_rotate(first, diff, end))
-    goto fail;
+  t (perform_rotate(first, diff, end));
   
   
  exit:

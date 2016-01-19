@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,8 +58,7 @@ static int perform_shift(size_t first, size_t shift)
     {
       sprintf(buffer1, "%zu.pnm", i);
       sprintf(buffer2, "%zu.pnm", i + shift);
-      if (movefile(buffer1, buffer2))
-	goto fail;
+      t (movefile(buffer1, buffer2));
     }
   
   return 0;
@@ -120,8 +119,7 @@ int main(int argc, char* argv[])
   if (shift == 0)                                        goto invalid_opts;
   
   
-  if (perform_shift(first, shift))
-    goto fail;
+  t (perform_shift(first, shift));
   
   
  exit:

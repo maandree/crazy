@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -108,9 +108,9 @@ static char* relpath(const char* file, const char* ref)
   char* prc;
   size_t ptr, p, n = 0;
   
-  if ((cwd     = get_current_dir_name()) == NULL)  goto fail;
-  if ((absfile = abspath(file, cwd))     == NULL)  goto fail;
-  if ((absref  = abspath(ref, cwd))      == NULL)  goto fail;
+  t ((cwd     = get_current_dir_name()) == NULL);
+  t ((absfile = abspath(file, cwd))     == NULL);
+  t ((absref  = abspath(ref, cwd))      == NULL);
   
   strrchr(absref, '/')[1] = '\0';
   
@@ -126,8 +126,7 @@ static char* relpath(const char* file, const char* ref)
       n += 1;
   
   rc = malloc((strlen(absfile + ptr) + 1 + 3 * n) * sizeof(char));
-  if (prc = rc, rc == NULL)
-    goto fail;
+  t (prc = rc, rc == NULL);
   
   while (n--)
     prc = stpcpy(prc, "../");
@@ -164,19 +163,15 @@ int copyfile(const char* src, const char* dest)
   ssize_t sent;
   struct stat attr;
   
-  if (fsrc = open(src, O_RDONLY), fsrc < 0)
-    goto fail;
-  if (fstat(fsrc, &attr))
-    goto fail;
+  t (fsrc = open(src, O_RDONLY), fsrc < 0);
+  t (fstat(fsrc, &attr));
   
-  if (fdest = open(dest, O_WRONLY | O_CREAT | O_EXCL, attr.st_mode & 07777), fdest < 0)
-    goto fail;
+  t (fdest = open(dest, O_WRONLY | O_CREAT | O_EXCL, attr.st_mode & 07777), fdest < 0);
   
   do
     {
       sent = sendfile(fdest, fsrc, NULL, 0x7ffff000UL);
-      if ((sent < 0) && (errno != EINTR))
-	goto fail;
+      t ((sent < 0) && (errno != EINTR));
     }
   while (sent);
   
@@ -205,11 +200,9 @@ int symlfile(const char* src, const char* dest)
   int saved_errno;
   
   target = relpath(src, dest);
-  if (target == NULL)
-    goto fail;
+  t (target == NULL);
   
-  if (symlink(target, dest))
-    goto fail;
+  t (symlink(target, dest));
   
   free(target);
   return 0;
@@ -276,15 +269,13 @@ int mkdirs(const char* dir)
   if (q != NULL)
     {
       *q = '\0';
-      if (access(dir_edited, F_OK) && mkdir(dir_edited, 0755))
-	goto fail;
+      t (access(dir_edited, F_OK) && mkdir(dir_edited, 0755));
       *q = '/';
       p = q + 1;
       goto next;
     }
   else if (*p)
-    if (access(dir_edited, F_OK) && mkdir(dir_edited, 0755))
-      goto fail;
+    t (access(dir_edited, F_OK) && mkdir(dir_edited, 0755));
   
   return 0;
  fail:

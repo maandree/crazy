@@ -1,6 +1,6 @@
 /**
  * crazy — A crazy simple and usable scanning utility
- * Copyright © 2015  Mattias Andrée (maandree@member.fsf.org)
+ * Copyright © 2015, 2016  Mattias Andrée (maandree@member.fsf.org)
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -149,12 +149,11 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
   if (resize_vertically)  sprintf(scale, "x%zu", height);
   else                    sprintf(scale, "%zux", width);
   
-  if (pipe(in_rw))   goto fail;
-  if (pipe(out_rw))  goto fail;
+  t (pipe(in_rw));
+  t (pipe(out_rw));
   
   pid_1 = fork();
-  if (pid_1 < 0)
-    goto fail;
+  t (pid_1 < 0);
   
   if (pid_1 == 0)
     {
@@ -188,8 +187,7 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
   close(out_rw[1]), out_rw[1] = -1;
   
   pid_2 = fork();
-  if (pid_2 < 0)
-    goto fail;
+  t (pid_2 < 0);
   
   if (pid_2 == 0)
     {
@@ -198,8 +196,7 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
       while (ptr < image_size)
 	{
 	  got = write(in_rw[1], image + ptr, image_size - ptr);
-	  if (got < 0)
-	    goto fail;
+	  t (got < 0);
 	  ptr += (size_t)got;
 	}
       
@@ -210,8 +207,7 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
   close(in_rw[1]), in_rw[1] = -1;
   
   *scaled = malloc(size);
-  if (*scaled == NULL)
-    goto fail;
+  t (*scaled == NULL);
   for (;;)
     {
       if (size - ptr < 1024)
@@ -227,10 +223,11 @@ int resize_image(size_t width, size_t height, int resize_vertically, const char*
       got = read(out_rw[0], *scaled, size - ptr);
       if (got == 0)
 	break;
-      else if ((got < 0) && (errno == EINTR))
-	continue;
-      else if (got < 0)
-	goto fail;
+      if (got < 0)
+	{
+	  t (errno != EINTR);
+	  continue;
+	}
       
       ptr += (size_t)got;
     }
