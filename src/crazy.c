@@ -279,7 +279,7 @@ static int select_item(char** restrict selected, char** restrict list, size_t n,
   
   tcgetattr(STDIN_FILENO, &stty);
   saved_stty = stty;
-  stty.c_lflag &= (typeof(stty.c_lflag))~(ICANON | ECHO | ISIG);
+  stty.c_lflag &= (tcflag_t)~(ICANON | ECHO | ISIG);
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &stty);
   
   for (;;)
@@ -291,7 +291,7 @@ static int select_item(char** restrict selected, char** restrict list, size_t n,
 	{
 	  printf("\033[%zuA\033[00;34m%s\033[00m\n", n - sel, list[sel]);
 	  printf("\033[00;01;07;34;47m%s\033[00m\n", list[++sel]);
-	  if (n - sel - 1 > 0)
+	  if (n - sel > 0)
 	    printf("\033[%zuB", n - sel - 1);
 	  fflush(stdout);
 	}
