@@ -29,12 +29,13 @@
 /**
  * Create a subprocess and read it's stdout
  * 
- * @param   file  The filename of the command to start
- * @param   argv  The command line arguments for the new process
- * @param   pid   Output parameter for the new process's PID
- * @return        The file descriptor of the new process's stdout, -1 on error
+ * @param   file    The filename of the command to start
+ * @param   argv    The command line arguments for the new process
+ * @param   lang_c  Whether to set $LANG to "C"
+ * @param   pid     Output parameter for the new process's PID
+ * @return          The file descriptor of the new process's stdout, -1 on error
  */
-int subprocess_rd(const char* file, const char* const argv[], pid_t* pid)
+int subprocess_rd(const char* file, const char* const argv[], int lang_c, pid_t* pid)
 {
   int pipe_rw[2];
   
@@ -56,7 +57,8 @@ int subprocess_rd(const char* file, const char* const argv[], pid_t* pid)
     }
   else if (*pid == 0)
     {
-      setenv("LANG", "C", 1);
+      if (lang_c)
+	setenv("LANG", "C", 1);
       if (pipe_rw[1] != STDOUT_FILENO)
 	{
 	  close(STDOUT_FILENO);

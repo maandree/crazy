@@ -118,7 +118,7 @@ static char** get_devices(ssize_t* restrict count)
   char* q;
   
   /* Start listing devices. */
-  fd = subprocess_rd("scanimage", (const char* const[]){"scanimage", "-L", NULL}, &pid);
+  fd = subprocess_rd("scanimage", (const char* const[]){"scanimage", "-L", NULL}, 1, &pid);
   /* Output line format: device `DEVICE_ADDRESS' is a DEVICE_NAME_AND_TYPE */
   t (fd < 0);
   
@@ -162,8 +162,9 @@ static char** get_devices(ssize_t* restrict count)
       new = realloc(rc, ((size_t)*count + 1) * sizeof(*rc));
       t (new == NULL);
       rc = new;
-      rc[*count] = strdup(p);
+      rc[*count] = malloc(strlen(p) + 1);
       t (rc[*count] == NULL);
+      strcpy(rc[*count], p);
       ++*count;
       
     }
@@ -273,53 +274,25 @@ static int select_item(char** restrict selected, char** restrict list, size_t n,
 static int scan_image(char** image)
 {
   char* sh = NULL;
-  ssize_t n;
   const char* mode_ = mode == 0 ? "lineart" : mode == 1 ? "gray" : "color"; /* [sic!] */
-  int pipe_rw[2];
+  char threshold[sizeof(" --threshold -") + 3 * sizeof(int)];
+  int fd = -1;
   pid_t pid;
   
   /* Init. */
   *image = NULL;
-  pipe_rw[0] = -1;
-  pipe_rw[1] = -1;
+  *threshold = '\0';
   
   /* Construct scan command. */
-  snprintf(NULL, 0, "scanimage -d '%s' --format pnm --mode %s --resolution %idpi --threshold %i%s%s%zn",
-	   device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "", &n);
-  
-  sh = malloc((size_t)n * sizeof(char*));
+  if (mode == 0)
+    sprintf(threshold, " --threshold %i", white); /* TODO this may not be supported (inactive)*/
+  aprintf(&sh, "scanimage -d '%s' --format pnm --mode %s --resolution %idpi%s%s%s%zn",
+	  device, mode_, dpi, threshold, pipeimg ? " | " : "", pipeimg ?: "", &n);
   t (sh == NULL);
   
-  sprintf(sh, "scanimage -d '%s' --format pnm --mode %s --resolution %idpi --threshold %i%s%s",
-	  device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "");
-  
-  /* Set up communication channel. */
-  t (pipe(pipe_rw) < 0);
-  
   /* Start scanner process. */
-  pid = fork();
-  t (pid < 0);
-  
-  if (pid == 0)
-    {
-      /* Scan image. */
-      if (pipe_rw[1] != STDOUT_FILENO)
-	{
-	  close(STDOUT_FILENO);
-	  dup2(pipe_rw[1], STDOUT_FILENO);
-	  close(pipe_rw[1]);
-	}
-      close(pipe_rw[0]);
-      execlp("sh", "sh", "-c", sh, NULL);
-      perror(execname);
-      free(sh);
-      exit(1);
-    }
-  
-  /* Parent process continues here. */
-  free(sh);
-  sh = NULL;
-  close(pipe_rw[1]);
+  fd = subprocess_rd("sh", (const char* const[]){"sh", "-c", sh}, 0, &pid);
+  t (fd < 0);
   
   /* TODO */
   
@@ -484,7 +457,7 @@ int main(int argc, char* argv[])
       if ((args_opts_get_count((char*)"--resolution") != 1) || (*args == NULL))
 	goto invalid_opts;
       dpi = atoi(*args);
-      if ((dpi % 75) || (dpi < 75) || (dpi > 2400))
+      if (dpi <= 0)
 	goto invalid_opts;
     }
   if (args_opts_used((char*)"--threshold"))
