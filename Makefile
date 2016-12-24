@@ -64,7 +64,7 @@ obj/tools/%.o: src/tools/%.c src/tools/common.h
 	@mkdir -p $(shell dirname $@)
 	$(CC) -std=$(STD) $(WARN) $(OPTIMISE) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
-bin/crazy: obj/crazy.o obj/display_fb.o obj/images.o
+bin/crazy: obj/crazy.o obj/display_fb.o obj/images.o obj/util.o
 	@mkdir -p bin
 	$(CC) $(WARN) $(OPTIMISE) $(LINK) $(LDFLAGS) -o $@ $^
 

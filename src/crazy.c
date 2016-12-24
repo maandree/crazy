@@ -17,21 +17,22 @@
  */
 #include "crazy.h"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <termios.h>
-#include <errno.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/wait.h>
-#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include <argparser.h>
 
 #include "display.h"
 #include "display_fb.h"
+#include "util.h"
 
 
 
@@ -106,121 +107,67 @@ static display_t display;
  */
 static char** get_devices(ssize_t* restrict count)
 {
-  int pipe_rw[2];
   pid_t pid, reaped;
-  char buf[512];
-  ssize_t got, i;
+  int fd, status;
   char** rc = NULL;
-  size_t ptr, allocated;
-  int state = 0, status;
-  
-  /* Set up communication channel. */
-  if (pipe(pipe_rw) < 0)
-    {
-      perror(execname);
-      *count = -1;
-      return NULL;
-    }
-  
-  /* Create device lister process. */
-  pid = fork();
-  if (pid < 0)
-    {
-      perror(execname);
-      close(pipe_rw[0]);
-      close(pipe_rw[1]);
-      *count = -1;
-      return NULL;
-    }
+  char* line = NULL;
+  size_t linesize = 0;
+  ssize_t len;
+  void* new;
+  char* p;
+  char* q;
   
   /* Start listing devices. */
-  if (pid == 0)
-    {
-      setenv("LANG", "C", 1);
-      if (pipe_rw[1] != STDOUT_FILENO)
-	{
-	  close(STDOUT_FILENO);
-	  dup2(pipe_rw[1], STDOUT_FILENO);
-	  close(pipe_rw[1]);
-	}
-      close(pipe_rw[0]);
-      execlp("sh", "sh", "-c", "scanimage -L | cut -d ' ' -f 2", NULL);
-      /* Output line-format: device `DEVICE_ADDRESS' is a DEVICE_NAME_AND_TYPE */
-      /* After cut: `DEVICE_ADDRESS' */
-      perror(execname);
-      exit(1);
-    }
-  
-  close(pipe_rw[1]);
-  /* Allocate device list. */
-  *count = 0;
-  rc = malloc(sizeof(char*));
-  t (rc == NULL);
-  ptr = 0, allocated = 32;
-  rc[0] = malloc(allocated * sizeof(char));
-  t (rc[0] == NULL);
-  state = 0;
+  fd = subprocess_rd("scanimage", (const char* const[]){"scanimage", "-L", NULL}, &pid);
+  /* Output line format: device `DEVICE_ADDRESS' is a DEVICE_NAME_AND_TYPE */
+  t (fd < 0);
   
   /* Retrieve device list. */
+  *count = 0;
   for (;;)
     {
-      /* Read. */
-      got = read(pipe_rw[0], buf, sizeof(buf) / sizeof(*buf));
-      if (got == 0)
+      len = fd_getline(fd, &line, &linesize);
+      t (len < 0);
+      if (len == 0)
 	break;
-      if (got < 0)
+
+      /* Check end of list. (For when nothing is found, scanimage is a bit odd here) */
+      if (*line == '\n')
+	break;
+      
+      /* Find start of column 2. */
+      p = strchr(line, ' ');
+      if ((p == NULL) || (*++p == ' '))
 	{
-	  t (errno != EINTR);
+	  fprintf(stderr, "%s: invalid line read from `scanimage -L`, skipping\n", execname);
 	  continue;
 	}
-      /* Parse. */
-      for (i = 0; i < got; i++)
+      /* Skip first character. (` is currently used, who knows, maybe it will be ‘ in the future.) */
+      for (p++; (*p & 0xC0) == 0x80; p++);
+      /* Find end of column 2. */
+      q = strchr(p, ' ');
+      if (q == NULL)
 	{
-	  /* Skip first character. (` is currently used, who knows, maybe it will be ‘ in the future.) */
-	  if (state == 0)
-	    state++;
-	  else if ((state == 1) && ((buf[i] & 0xC0) != 0x80))
-	    state++;
-	  /* Copy and split. */
-	  if (buf[i] == '\n')
-	    {
-	      /* Split. */
-	      char** old;
-	      state = 0;
-	      /* Skip last character. (' is currently used, who knows, maybe it will be ’ in the future.) */
-	      if ((rc[*count][--ptr] & 0x80))
-		while ((rc[*count][ptr - 1] & 0xC0) != 0x80)
-		  ptr--;
-	      /* NUL-terminate item. */
-	      rc[*count][ptr] = '\0';
-	      /* Extend list for another item. */
-	      rc = realloc(old = rc, (size_t)(++*count) * sizeof(char*));
-	      if (rc == NULL)
-		{
-		  rc = old;
-		  goto fail;
-		}
-	      ptr = 0, allocated = 32;
-	      rc[*count] = malloc(allocated * sizeof(char));
-	      t (rc[*count] == NULL);
-	    }
-	  else if (state == 2)
-	    {
-	      /* Copy. */
-	      char* old;
-	      if (ptr == allocated)
-		{
-		  rc[*count] = realloc(old = rc[*count], (allocated <<= 1) * sizeof(char));
-		  if (rc[*count] == NULL)
-		    {
-		      rc[*count] = old;
-		      goto fail;
-		    }
-		}
-	      rc[*count][ptr++] = buf[i];
-	    }
+	  fprintf(stderr, "%s: invalid line read from `scanimage -L`, skipping\n", execname);
+	  continue;
 	}
+      /* Skip last character. (' is currently used, who knows, maybe it will be ’ in the future.) */
+      while ((q[-1] & 0xC0) == 0x80)
+	q--;
+      q--;
+      /* NUL-terminate item. */
+      *q = '\0';
+      
+      /* Add device to list. */
+      new = realloc(rc, ((size_t)*count + 1) * sizeof(*rc));
+      t (new == NULL);
+      rc = new;
+      rc[*count] = strdup(p);
+      t (rc[*count] == NULL);
+      ++*count;
+      
     }
+  free(line), line = NULL;
   
   /* Reap device lister. */
   for (;;)
@@ -237,19 +184,20 @@ static char** get_devices(ssize_t* restrict count)
     }
   
   /* Done. */
-  free(rc[*count]);
-  close(pipe_rw[0]);
+  close(fd);
   return rc;
  fail:
-  if (rc != NULL)
-    {
-      while (*count >= 0)
-	free(rc[*count--]);
-      free(rc);
-    }
   if (errno)
     perror(execname);
-  close(pipe_rw[0]);
+  free(line);
+  if (rc != NULL)
+    {
+      while (*count-- > 0)
+	free(rc[*count]);
+      free(rc);
+    }
+  if (fd >= 0)
+    close(fd);
   return *count = -1, NULL;
 }
 
@@ -336,13 +284,13 @@ static int scan_image(char** image)
   pipe_rw[1] = -1;
   
   /* Construct scan command. */
-  snprintf(NULL, 0, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s%zn",
+  snprintf(NULL, 0, "scanimage -d '%s' --format pnm --mode %s --resolution %idpi --threshold %i%s%s%zn",
 	   device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "", &n);
   
   sh = malloc((size_t)n * sizeof(char*));
   t (sh == NULL);
   
-  sprintf(sh, "scanimage -d '%s' --mode %s --resolution %idpi --threshold %i%s%s",
+  sprintf(sh, "scanimage -d '%s' --format pnm --mode %s --resolution %idpi --threshold %i%s%s",
 	  device, mode_, dpi, white, pipeimg ? " | " : "", pipeimg ?: "");
   
   /* Set up communication channel. */
@@ -583,7 +531,12 @@ int main(int argc, char* argv[])
     {
       printf("Please wait while searching for scanners...\n");
       devices = get_devices(&device_count);
-      if (device_count == 0)
+      if (device_count < 0)
+	{
+	  rc = 1;
+	  goto exit;
+	}
+      else if (device_count == 0)
 	{
 	  fprintf(stderr, "%s: no scanning device available\n", execname);
 	  rc = 1;
